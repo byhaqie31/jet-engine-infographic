@@ -21,6 +21,14 @@ const PART_LABELS = {
   nozzle:     { name: 'Fan & Core Nozzle',  detail: 'Separate exhaust · 97,000 lbf' },
 };
 
+// Aircraft-level specs shown on hover in Scene 0
+const AIRCRAFT_ZONES = [
+  { xMax:  -18,  name: 'Tail & APU',         detail: 'H-shaped tail · Honeywell APU · 16.9 m height' },
+  { xMax:   -9,  name: 'Wing Box',            detail: 'Span 64.75 m · 35° sweep · CFRP composite' },
+  { xMax:    0,  name: 'RR Trent XWB-97',     detail: '97,000 lbf · Ø 3.0 m · 2 engines per aircraft' },
+  { xMax: Infinity, name: 'Airbus A350-1000', detail: 'Length 73.79 m · MTOW 316 t · 369 passengers' },
+];
+
 // ─── TOOLTIP INIT ─────────────────────────────────────────────────────────────
 
 /**
@@ -51,35 +59,63 @@ export function initTooltips(component) {
   }
   const meshes = Array.from(meshToPart.keys());
 
+  // Aircraft meshes for Scene 0 hover — collected lazily once the GLB has loaded
+  let aircraftMeshes = null;
+
+  function _positionTooltip(e, stageRect) {
+    let tx = e.clientX - stageRect.left + 16;
+    let ty = e.clientY - stageRect.top  - 8;
+    if (tx + 220 > stageRect.width) tx = e.clientX - stageRect.left - 230;
+    tooltip.style.left = `${tx}px`;
+    tooltip.style.top  = `${ty}px`;
+  }
+
   host.addEventListener('mousemove', (e) => {
-    // Tooltips are only meaningful in Scenes 2–5 (engine anatomy, camera close)
+    const rect      = host.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+    mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, component.camera);
+
+    // ── Scene 0: hover on the full aircraft ─────────────────────────────────
+    if (component.currentScene === 0) {
+      if (!component.aircraftBody) { tooltip.classList.remove('is-visible'); return; }
+
+      // Lazy-collect meshes once the GLB is ready
+      if (!aircraftMeshes) {
+        aircraftMeshes = [];
+        component.aircraftBody.traverse(c => { if (c.isMesh) aircraftMeshes.push(c); });
+      }
+
+      const hits = raycaster.intersectObjects(aircraftMeshes, false);
+      if (hits.length > 0) {
+        // Determine zone by world-space x of the hit point
+        const wx = hits[0].point.x;
+        const zone = AIRCRAFT_ZONES.find(z => wx < z.xMax) ?? AIRCRAFT_ZONES.at(-1);
+        tooltip.querySelector('[data-tooltip-name]').textContent   = zone.name;
+        tooltip.querySelector('[data-tooltip-detail]').textContent = zone.detail;
+        _positionTooltip(e, stageRect);
+        tooltip.classList.add('is-visible');
+      } else {
+        tooltip.classList.remove('is-visible');
+      }
+      return;
+    }
+
+    // ── Scenes 3–5: hover on named engine parts ──────────────────────────────
     if (component.currentScene < 3) {
       tooltip.classList.remove('is-visible');
       return;
     }
 
-    const rect = host.getBoundingClientRect();
-    mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-    mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, component.camera);
     const hits = raycaster.intersectObjects(meshes, false);
-
     if (hits.length > 0) {
       const info = PART_LABELS[meshToPart.get(hits[0].object)];
       if (!info) { tooltip.classList.remove('is-visible'); return; }
 
       tooltip.querySelector('[data-tooltip-name]').textContent   = info.name;
       tooltip.querySelector('[data-tooltip-detail]').textContent = info.detail;
-
-      // Position relative to .stage (which is position:relative)
-      const stageRect = stage.getBoundingClientRect();
-      let tx = e.clientX - stageRect.left + 16;
-      let ty = e.clientY - stageRect.top  - 8;
-      // Don't clip off the right edge
-      if (tx + 200 > stageRect.width) tx = e.clientX - stageRect.left - 210;
-      tooltip.style.left = `${tx}px`;
-      tooltip.style.top  = `${ty}px`;
+      _positionTooltip(e, stageRect);
       tooltip.classList.add('is-visible');
     } else {
       tooltip.classList.remove('is-visible');

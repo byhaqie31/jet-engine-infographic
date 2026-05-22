@@ -16,14 +16,14 @@ import gsap from 'gsap';
 // The new model is taller (wing at y≈3.15) so cameras are pulled up and back
 // relative to the original generic-engine build.
 export const SCENE_CAMERAS = [
-  { position: [12,  10,  50],  lookAt: [-7.7, 3,   -1.2], duration: 2.0 }, // 0 Intro       — full aircraft orbit
-  { position: [5,   3,   12],  lookAt: [0,    1.0,  0],   duration: 2.5 }, // 1 Side angle  — profile of nacelle, still GLB
-  { position: [7,   4,   9],   lookAt: [0,    0.8,  0],   duration: 1.8 }, // 2 Exterior    — engine pod, ghost aircraft, procedural engine fades in
-  { position: [10,  5.5, 10],  lookAt: [0,    1.8,  0],   duration: 1.8 }, // 3 Intake      — wide engine, intake particles
-  { position: [4,   1.8, 4],   lookAt: [0.8,  0.2,  0],   duration: 1.2 }, // 4 Compression — dolly into compressor
-  { position: [0,   0.5, 3.5], lookAt: [-0.3, 0,    0],   duration: 1.2 }, // 5 Combustion  — tight on chamber
-  { position: [-3,  0.8, 3],   lookAt: [-1.5, 0.2,  0],   duration: 1.2 }, // 6 Turbine     — pulls back
-  { position: [9,   5,   9],   lookAt: [0.5,  1.5,  0],   duration: 1.2 }, // 7 Thrust      — wide reveal, orbit ON
+  { position: [12,  7,  36],  lookAt: [-7.7, 3,   -1.2], duration: 2.0 }, // 0 Intro       — full aircraft orbit
+  { position: [13,  3,   4],   lookAt: [0,    1.0,  0],   duration: 2.5 }, // 1 Side angle  — approach from front, engine intake in frame
+  { position: [9,   0,   2],   lookAt: [0,    0,    0],   duration: 1.8 }, // 2 Exterior    — camera at nacelle centreline, engine dead-centre
+  { position: [7,   0,   3.5], lookAt: [1.5,  0,    0],   duration: 1.8 }, // 3 Intake      — camera at centreline, looking into intake face
+  { position: [3,   0,   3.5], lookAt: [0.5,  0,    0],   duration: 1.2 }, // 4 Compression — centreline, compressor centred
+  { position: [0,   0,   3],   lookAt: [-0.3, 0,    0],   duration: 1.2 }, // 5 Combustion  — centreline, combustion chamber centred
+  { position: [-2,  0,   3],   lookAt: [-1.5, 0,    0],   duration: 1.2 }, // 6 Turbine     — centreline, turbine centred
+  { position: [6,   0.5, 8],   lookAt: [0,    0,    0],   duration: 1.2 }, // 7 Thrust      — slight elevation for wide reveal, engine centred
 ];
 
 // ─── PARTICLE SYSTEMS ─────────────────────────────────────────────────────────
@@ -179,6 +179,54 @@ export function initWheelNavigation(component) {
   });
 }
 
+// ─── AIRCRAFT POSE ──────────────────────────────────────────────────────────
+
+/**
+ * Tween the aircraft body between its two poses:
+ *   'base'    — full-aircraft view (Scenes 0–1)
+ *   'aligned' — nacelle dropped onto the procedural engine at origin (Scene 2 x-ray)
+ * Snaps instantly when dur is 0 (e.g. when the body is hidden and about to reappear).
+ */
+function setAircraftPose(component, mode, dur) {
+  const body = component.aircraftBody;
+  const base = component._aircraftBase;
+  const aligned = component._aircraftAligned;
+  if (!body || !base || !aligned) return;
+
+  const t = mode === 'aligned' ? aligned : base;
+  if (dur > 0) {
+    gsap.to(body.position, { x: t.pos.x, y: t.pos.y, z: t.pos.z, duration: dur, ease: 'power3.inOut' });
+    gsap.to(body.scale,    { x: t.scale.x, y: t.scale.y, z: t.scale.z, duration: dur, ease: 'power3.inOut' });
+  } else {
+    body.position.copy(t.pos);
+    body.scale.copy(t.scale);
+  }
+}
+
+/**
+ * Fade the procedural engine in (opacity 0→1). Used in Scene 2 so the engine is
+ * revealed *after* the aircraft has slid into place — reads as travelling into the
+ * nacelle. Skips the combustion glow, which manages its own opacity.
+ */
+function revealEngine(component, dur) {
+  const engine = component.engine;
+  engine.visible = true;
+
+  const mats = new Set();
+  engine.traverse(o => {
+    if (!o.isMesh || o.name === 'combustionGlow') return;
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m && mats.add(m));
+  });
+  mats.forEach(m => { m.userData._op = m.opacity; m.transparent = true; m.opacity = 0; });
+
+  const obj = { t: 0 };
+  gsap.to(obj, {
+    t: 1, duration: dur, ease: 'power2.out',
+    onUpdate() { mats.forEach(m => { m.opacity = (m.userData._op ?? 1) * obj.t; }); },
+    onComplete() { mats.forEach(m => { m.opacity = m.userData._op ?? 1; m.transparent = false; }); },
+  });
+}
+
 // ─── SCENE TRANSITION ─────────────────────────────────────────────────────────
 
 /**
@@ -252,6 +300,7 @@ export function transitionScene(component, idx) {
       // Return to intro — restore full aircraft, sky, bright lighting
       component.engine.visible = false;
       component.aircraftBody.visible = true;
+      setAircraftPose(component, 'base', prevIdx === 2 ? dur : 0);
       component.aircraftBody.traverse(child => {
         if (child.material) child.material.opacity = 1.0;
       });
@@ -266,6 +315,7 @@ export function transitionScene(component, idx) {
       // Side-angle engine approach — aircraft stays full, engine hidden, sky maintained
       component.engine.visible = false;
       component.aircraftBody.visible = true;
+      setAircraftPose(component, 'base', prevIdx === 2 ? dur : 0);
 
       if (prevIdx >= 2) {
         // Returning from engine anatomy — restore aircraft and sky
@@ -283,10 +333,15 @@ export function transitionScene(component, idx) {
 
     } else if (idx === 2) {
       // Engine exterior — ghost aircraft, reveal procedural engine, begin darkening
-      component.engine.visible = true;
       component.aircraftBody.visible = true;
+      // Drop the nacelle onto the procedural engine: tween in from the full-aircraft
+      // view, snap when arriving from a hidden state (Scene 3+).
+      setAircraftPose(component, 'aligned', prevIdx <= 1 ? dur : 0);
 
       if (prevIdx <= 1) {
+        // Move the aircraft into place first, THEN reveal the engine inside it.
+        component.engine.visible = false;
+        gsap.delayedCall(dur * 0.55, () => revealEngine(component, 0.7));
         // Coming from aircraft scenes: fade sky and ghost aircraft
         gsap.to(component.threeScene.fog, { near: 28, far: 85, duration: dur * 0.8 });
         if (component._ambientLight) gsap.to(component._ambientLight, { intensity: 0.8, duration: dur });
@@ -301,12 +356,15 @@ export function transitionScene(component, idx) {
           },
         });
       } else {
-        // Returning from Scene 3+
+        component.engine.visible = true;
+        // Returning from Scene 3+ — restore the sky (Scene 3 had switched it to dark)
         component.aircraftBody.traverse(child => {
           if (child.material) child.material.opacity = 0.25;
         });
-        component.threeScene.fog.near = 22;
-        component.threeScene.fog.far  = 70;
+        component.threeScene.background = new THREE.Color(0xB8CDD8);
+        component.threeScene.fog.color.set(0xB8CDD8);
+        component.threeScene.fog.near = 28;
+        component.threeScene.fog.far  = 85;
         if (component._ambientLight) component._ambientLight.intensity = 0.8;
         if (component._keyLight)     component._keyLight.intensity     = 1.4;
       }

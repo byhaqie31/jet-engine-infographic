@@ -402,10 +402,18 @@ body {
 }
 
 .host-article__embed {
-  margin: 0 -120px 64px;
+  margin: 0 -280px 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+@media (max-width: 1200px) {
+  .host-article__embed { margin: 0 -120px 64px; }
+}
+
+@media (max-width: 900px) {
+  .host-article__embed { margin: 0 -20px 48px; }
 }
 
 .host-article__embed figcaption {

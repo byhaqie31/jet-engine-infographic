@@ -163,15 +163,20 @@ const styles = `
     color: var(--color-ink-primary);
   }
 
+  /* Single shared border wraps both panels — guarantees pixel-perfect alignment */
+  .component-wrap {
+    border: 1px solid var(--color-hairline);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
   .stage {
     position: relative;
     width: 100%;
-    aspect-ratio: 1440 / 900;
-    max-height: 900px;
+    aspect-ratio: 16 / 9;
+    max-height: 720px;
     background: radial-gradient(ellipse at center, #14161E 0%, var(--bg) 70%);
-    border-radius: 12px; /* --radius-surface */
     overflow: hidden;
-    border: 1px solid var(--hairline);
   }
 
   /* Three.js canvas sits behind everything */
@@ -189,16 +194,19 @@ const styles = `
     height: 100% !important;
   }
 
-  /* ---------- TOP BAR ---------- */
-  .topbar {
-    position: absolute;
-    top: 0; left: 0; right: 0;
+  /* ---------- SCENE INFO PANEL (above canvas) ---------- */
+  .scene-info {
+    background: var(--color-bg-base);
+    border-bottom: 1px solid var(--color-hairline);
+    padding: 24px 32px 20px;
+    text-align: center;
+  }
+
+  .info-topbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 24px 32px;
-    z-index: 10;
-    pointer-events: none;
+    margin-bottom: 20px;
   }
 
   .topbar__label {
@@ -225,15 +233,10 @@ const styles = `
     transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1);
   }
 
-  /* ---------- HEADLINE OVERLAY ---------- */
+  /* ---------- HEADLINE (in scene-info panel) ---------- */
   .headline {
-    position: absolute;
-    bottom: 120px;
-    left: 0; right: 0;
+    margin-bottom: 20px;
     text-align: center;
-    z-index: 5;
-    padding: 0 32px;
-    pointer-events: none;
   }
 
   .headline__title {
@@ -255,16 +258,11 @@ const styles = `
     letter-spacing: -0.005em;
   }
 
-  /* ---------- DATA READOUT ---------- */
+  /* ---------- DATA READOUT (in scene-info panel) ---------- */
   .data {
-    position: absolute;
-    bottom: 56px;
-    left: 50%;
-    transform: translateX(-50%);
     display: flex;
+    justify-content: center;
     gap: 48px;
-    z-index: 5;
-    pointer-events: none;
   }
 
   .data__item { text-align: center; }
@@ -301,14 +299,21 @@ const styles = `
     left: 50%;
     transform: translateX(-50%);
     display: flex;
+    align-items: center;
     gap: 10px;
     z-index: 10;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(10, 11, 15, 0.8);
+    border: 1px solid var(--color-hairline);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .dot {
     width: 6px; height: 6px;
     border-radius: 50%;
-    background: var(--hairline);
+    background: rgba(255, 255, 255, 0.3);
     cursor: pointer;
     transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     border: none;
@@ -320,7 +325,7 @@ const styles = `
     transform: scale(1.5);
   }
 
-  .dot:hover:not(.is-active) { background: var(--color-ink-muted); }
+  .dot:hover:not(.is-active) { background: var(--color-ink-secondary); }
 
   /* ---------- TOOLTIP ---------- */
   .tooltip {
@@ -361,21 +366,21 @@ const styles = `
     letter-spacing: -0.01em;
   }
 
-  /* ---------- EXPLORE / VIEW ENGINE BUTTON (ghost style) ---------- */
+  /* ---------- EXPLORE / VIEW ENGINE BUTTON (solid dark) ---------- */
   .explore-btn {
     position: absolute;
-    bottom: 80px;
+    bottom: 20%;
     left: 50%;
     transform: translateX(-50%);
-    background: transparent;
-    border: 1px solid var(--color-hairline);
-    color: var(--color-ink-muted);
+    background: var(--color-bg-base);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: var(--color-ink-primary);
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    padding: 12px 24px;
+    padding: 12px 28px;
     border-radius: var(--radius-sharp);
     cursor: pointer;
     z-index: 15;
@@ -384,13 +389,17 @@ const styles = `
     gap: 10px;
     opacity: 0;
     white-space: nowrap;
-    transition: color var(--duration-quick) var(--ease-precise),
-                border-color var(--duration-quick) var(--ease-precise);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: background var(--duration-quick) var(--ease-precise),
+                border-color var(--duration-quick) var(--ease-precise),
+                color var(--duration-quick) var(--ease-precise);
   }
 
   .explore-btn:hover {
-    color: var(--color-ink-primary);
-    border-color: var(--color-ink-muted);
+    background: var(--color-ink-primary);
+    color: var(--color-bg-base);
+    border-color: var(--color-ink-primary);
   }
 
   .explore-btn:focus-visible {
@@ -471,15 +480,16 @@ const styles = `
 
   /* ---------- MOBILE ---------- */
   @media (max-width: 768px) {
-    .stage { aspect-ratio: 375 / 677; max-height: 677px; }
-    .topbar { padding: 16px 20px; }
-    .headline { bottom: 140px; padding: 0 20px; }
-    .headline__title { font-size: 28px; }
+    .scene-info { padding: 16px 20px 14px; }
+    .info-topbar { margin-bottom: 12px; }
+    .headline { margin-bottom: 12px; }
+    .stage { aspect-ratio: 375 / 560; max-height: 560px; }
+    .headline__title { font-size: 24px; }
     .headline__subline { font-size: 13px; }
-    .data { gap: 24px; bottom: 64px; }
+    .data { gap: 24px; }
     .data__value { font-size: 15px; }
     .ignite-btn { font-size: 10px; padding: 11px 24px; }
-    .explore-btn { font-size: 10px; padding: 11px 20px; bottom: 64px; }
+    .explore-btn { font-size: 10px; padding: 11px 20px; bottom: 20%; }
   }
 
   /* ---------- FOCUS & ACCESSIBILITY ---------- */
@@ -524,25 +534,27 @@ class JetEngineInfographic extends HTMLElement {
     const scene = this.scenes[0];
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
-      <div class="stage">
-        <div class="canvas-host"></div>
-        <button class="explore-btn" data-explore>&#x2192;&nbsp;&nbsp;VIEW ENGINE</button>
 
-        <div class="topbar">
+      <div class="component-wrap">
+      <div class="scene-info">
+        <div class="info-topbar">
           <div class="topbar__label" data-scene-label>${scene.label}</div>
           <div class="topbar__progress">
             <div class="topbar__progress-bar" data-progress></div>
           </div>
         </div>
-
         <div class="headline">
           <h2 class="headline__title" data-headline-title>${scene.title}</h2>
           <p  class="headline__subline" data-headline-subline>${scene.subline}</p>
         </div>
-
         <div class="data" data-data-readout>
           ${this.renderStats(scene.stats)}
         </div>
+      </div>
+
+      <div class="stage">
+        <div class="canvas-host"></div>
+        <button class="explore-btn" data-explore>&#x2192;&nbsp;&nbsp;VIEW ENGINE</button>
 
         <div class="dots" data-dots>
           ${this.scenes
@@ -552,18 +564,17 @@ class JetEngineInfographic extends HTMLElement {
             .join('')}
         </div>
 
-        <!-- Tooltip shown by raycaster in interactions.js -->
         <div class="tooltip" data-tooltip>
           <div class="tooltip__name"   data-tooltip-name></div>
           <div class="tooltip__detail" data-tooltip-detail></div>
         </div>
 
-        <!-- Ignite button shown only during Scene 4 (Combustion) -->
         <button class="ignite-btn" data-ignite aria-label="Ignite engine">
           ⚡&nbsp;IGNITE
         </button>
 
         <div class="loading" data-loading>Initialising · Three.js</div>
+      </div>
       </div>
     `;
   }
@@ -591,7 +602,7 @@ class JetEngineInfographic extends HTMLElement {
 
     // Camera — starts at Scene 0 (full aircraft) position
     this.camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 300);
-    this.camera.position.set(12, 10, 50);
+    this.camera.position.set(12, 7, 36);
 
     // cameraTarget is tweened by GSAP in transitionScene();
     // the animate loop feeds it into camera.lookAt() every frame.
@@ -655,8 +666,8 @@ class JetEngineInfographic extends HTMLElement {
     this.controls.enablePan     = false;
     this.controls.enabled       = false;
     this.controls.target.set(-7.7, 3, -1.2);
-    this.controls.minDistance   = 18;
-    this.controls.maxDistance   = 65;
+    this.controls.minDistance   = 14;
+    this.controls.maxDistance   = 55;
 
     // Cache references to parts that need per-frame or event-driven animation
     this.fan            = this.engine.getObjectByName('fan');
@@ -686,6 +697,7 @@ class JetEngineInfographic extends HTMLElement {
       (model) => {
         this.aircraftBody = model;
         this.threeScene.add(model);
+        this._computeAircraftTransforms(model);
         if (loadingEl) {
           loadingEl.style.transition = 'opacity 0.8s';
           loadingEl.classList.add('is-hidden');
@@ -716,6 +728,47 @@ class JetEngineInfographic extends HTMLElement {
         if (loadingEl) loadingEl.textContent = 'No GLB found · using built-in model';
       },
     );
+  }
+
+  // Capture two aircraft poses:
+  //   base    — full-aircraft view (Scenes 0–1), as normalized by model-loader
+  //   aligned — starboard nacelle dropped onto the procedural engine at origin and
+  //             scaled to the same diameter, for the Scene 2 x-ray overlay.
+  //
+  // a350.glb is modelled in metres (wingspan 64.8, length 74.2). Every part is baked
+  // into meshes at the origin and the engine_l/r nodes are empty mount markers offset
+  // from the real nacelle — so the nacelle centre below comes from a vertex scan of
+  // the file (starboard pod ≈ X-10.36, axis along local +Z, outer cowl Ø≈3.78 m).
+  // If the GLB is ever replaced, re-measure these.
+  _computeAircraftTransforms(model) {
+    this._aircraftBase = { pos: model.position.clone(), scale: model.scale.clone() };
+
+    // No engine_r marker ⇒ procedural fallback aircraft; skip the overlay.
+    if (!model.getObjectByName('engine_r')) {
+      this._aircraftAligned = {
+        pos: this._aircraftBase.pos.clone(),
+        scale: this._aircraftBase.scale.clone(),
+      };
+      return;
+    }
+
+    const NACELLE_CENTER  = new THREE.Vector3(-10.36, -1.89, 6.11); // GLB-local metres
+    const NACELLE_DIAMETER = 3.78;                                  // outer cowl (vertical)
+    const PROC_DIAMETER    = 3.04;                                  // procedural fan-cowl Ø
+    const FIT_MARGIN       = 1.15;                                  // scale plane up so the engine sits well inside the nacelle
+    const Y_NUDGE          = -0.1;                                  // drop the plane slightly so the engine centres in the nacelle
+    const s = (PROC_DIAMETER * FIT_MARGIN) / NACELLE_DIAMETER;      // ≈ 0.82
+
+    // model keeps rotation.y = π/2 (nose → +X). R_y(90°): (x,y,z) → (z,y,-x).
+    const c = NACELLE_CENTER.clone().multiplyScalar(s);
+    const rotated = new THREE.Vector3(c.z, c.y, -c.x);
+
+    const pos = rotated.multiplyScalar(-1);  // land the nacelle centre on world origin
+    pos.y += Y_NUDGE;
+    this._aircraftAligned = {
+      pos,
+      scale: new THREE.Vector3(s, s, s),
+    };
   }
 
   onResize() {
@@ -769,9 +822,12 @@ class JetEngineInfographic extends HTMLElement {
     if (this.fan)     this.fan.rotation.x     += 0.015;
     if (this.turbine) this.turbine.rotation.x -= 0.02; // counter-rotation is physically correct
 
-    // Gentle engine sway — disabled once OrbitControls has taken over
-    if (this.engine && !this.controls.enabled) {
+    // Gentle engine sway — disabled once OrbitControls has taken over, and in
+    // Scene 2 where the engine must stay locked under the ghost-aircraft overlay.
+    if (this.engine && !this.controls.enabled && this.currentScene !== 2) {
       this.engine.rotation.y = Math.sin(Date.now() * 0.0003) * 0.05;
+    } else if (this.engine && this.currentScene === 2) {
+      this.engine.rotation.y = 0;
     }
 
     // Drive camera lookAt from the tweened cameraTarget (not active when OrbitControls is on)
@@ -782,7 +838,10 @@ class JetEngineInfographic extends HTMLElement {
     // Particle systems
     tickParticles(this.intakeParticles, this.exhaustParticles);
 
-    if (this.controls) this.controls.update();
+    // Only run update() while OrbitControls owns the view (Scenes 0 & 7).
+    // When disabled it would still call camera.lookAt(controls.target) and
+    // override the tweened cameraTarget, pulling the engine off-centre.
+    if (this.controls && this.controls.enabled) this.controls.update();
     this.renderer?.render(this.threeScene, this.camera);
   }
 }
