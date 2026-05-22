@@ -1,0 +1,145 @@
+/* ============================================
+   HOST PAGE STYLES
+   These style the surrounding demo article only.
+   The infographic component is self-contained.
+   ============================================ */
+
+:root {
+  --host-bg: #f5f3ee;
+  --host-ink: #1a1a1a;
+  --host-muted: #6b6b6b;
+  --host-rule: rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background: var(--host-bg);
+  color: var(--host-ink);
+  font-family: 'Geist', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------- NAV ---------- */
+.host-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 48px;
+  border-bottom: 1px solid var(--host-rule);
+  font-size: 13px;
+}
+
+.host-nav__brand {
+  font-weight: 500;
+  letter-spacing: 0.18em;
+}
+
+.host-nav__links {
+  display: flex;
+  gap: 32px;
+}
+
+.host-nav__links a {
+  color: var(--host-muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.host-nav__links a:hover {
+  color: var(--host-ink);
+}
+
+/* ---------- ARTICLE ---------- */
+.host-article {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 80px 32px 120px;
+}
+
+.host-article__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--host-muted);
+  margin-bottom: 32px;
+}
+
+.host-article__title {
+  font-family: 'Fraunces', serif;
+  font-weight: 300;
+  font-size: clamp(40px, 6vw, 72px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 32px;
+}
+
+.host-article__lede {
+  font-size: 20px;
+  line-height: 1.55;
+  color: var(--host-muted);
+  margin-bottom: 64px;
+  font-weight: 400;
+}
+
+.host-article__body {
+  font-size: 17px;
+  line-height: 1.7;
+  margin-bottom: 24px;
+  color: #2a2a2a;
+}
+
+.host-article__embed {
+  margin: 0 -120px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.host-article__embed figcaption {
+  margin-top: 16px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--host-muted);
+}
+
+/* ---------- FOOTER ---------- */
+.host-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 32px 48px;
+  border-top: 1px solid var(--host-rule);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--host-muted);
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 768px) {
+  .host-nav,
+  .host-footer {
+    padding: 20px 24px;
+  }
+
+  .host-nav__links {
+    gap: 20px;
+  }
+
+  .host-article {
+    padding: 48px 20px 80px;
+  }
+
+  .host-article__embed {
+    margin: 0 -20px 48px;
+  }
+}

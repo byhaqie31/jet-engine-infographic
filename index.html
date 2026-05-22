@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Anatomy of Thrust — Jet Engine Infographic</title>
+    <meta
+      name="description"
+      content="An interactive infographic exploring how a modern jet engine works."
+    />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.css"
+    />
+
+    <link rel="stylesheet" href="/src/host.css" />
+  </head>
+  <body>
+    <!-- Faux editorial host page to demonstrate the embedded component -->
+    <header class="host-nav">
+      <div class="host-nav__brand">AXEL NOVA · DISPATCH</div>
+      <nav class="host-nav__links">
+        <a href="#">Engineering</a>
+        <a href="#">Design</a>
+        <a href="#">Archive</a>
+      </nav>
+    </header>
+
+    <main class="host-article">
+      <div class="host-article__meta">
+        <span>Issue 04 · Engineering</span>
+        <span>7 min read</span>
+      </div>
+
+      <h1 class="host-article__title">
+        The machine that bends physics for a living.
+      </h1>
+
+      <p class="host-article__lede">
+        A turbofan engine is a paradox: a quarter-million parts assembled to
+        accomplish a single, almost spiritual task — pushing air backwards hard
+        enough to drag a building through the sky. Scroll through the anatomy of
+        thrust below.
+      </p>
+
+      <!-- THE EMBEDDED INTERACTIVE ASSET -->
+      <figure class="host-article__embed">
+        <jet-engine-infographic></jet-engine-infographic>
+        <figcaption>
+          Interactive · Drag, scroll, hover to explore.
+        </figcaption>
+      </figure>
+
+      <p class="host-article__body">
+        Everything you just saw — the intake, the compression, the controlled
+        explosion — happens roughly one hundred times per second inside the
+        engines of the aircraft above you right now. It is the most refined
+        choreography in industrial design.
+      </p>
+
+      <p class="host-article__body">
+        The component embedded above is a self-contained Web Component. It can
+        be dropped into any HTML document with a single tag, regardless of the
+        host framework.
+      </p>
+    </main>
+
+    <footer class="host-footer">
+      <span>© Axel Nova Dispatch</span>
+      <span>Built by Qie · 2026</span>
+    </footer>
+
+    <!-- Component entry point -->
+    <script type="module" src="/src/jet-engine.js"></script>
+  </body>
+</html>
