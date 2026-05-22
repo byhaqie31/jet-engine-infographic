@@ -10,12 +10,7 @@
     />
 
     <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="stylesheet" href="/src/fonts.css" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/style.css"
@@ -24,7 +19,69 @@
     <link rel="stylesheet" href="/src/host.css" />
   </head>
   <body>
+
+    <!-- ═══ HERO — Cinematic aviation intro ═══ -->
+    <section class="hero">
+      <!-- HUD corner brackets -->
+      <div class="hero__bracket hero__bracket--tl"></div>
+      <div class="hero__bracket hero__bracket--tr"></div>
+      <div class="hero__bracket hero__bracket--bl"></div>
+      <div class="hero__bracket hero__bracket--br"></div>
+
+      <!-- Top flight-data strip -->
+      <div class="hero__strip">
+        <span>RR · Trent XWB-97</span>
+        <span class="hero__dot">·</span>
+        <span>Bypass 9.3 : 1</span>
+        <span class="hero__dot">·</span>
+        <span>A350-1000</span>
+        <span class="hero__dot">·</span>
+        <span>Eng 01 / 02</span>
+      </div>
+
+      <!-- A350 flyby plane — sits above the first title (z-4) so it can engulf it -->
+      <img class="hero__plane" src="/A350.png" aria-hidden="true" alt="" />
+
+      <!-- Phase 1 content — gets swallowed by the expanding aircraft -->
+      <div class="hero__center">
+        <p class="hero__eyebrow">Issue 04 · Engineering · Axel Nova Dispatch</p>
+        <h1 class="hero__title">Anatomy<br>of Thrust</h1>
+        <hr class="hero__rule" />
+        <p class="hero__sub">97,000 pounds of force. Five scenes. One machine.</p>
+      </div>
+
+      <!-- Phase 2 reveal — floats on top of the expanded aircraft (z-5) -->
+      <div class="hero__reveal">
+        <p class="hero__eyebrow">Airbus · A350 Family</p>
+        <h2 class="hero__title">On Airbus<br><span class="hero__title-accent">A350-1000</span></h2>
+        <hr class="hero__rule" />
+        <p class="hero__sub">Wingspan 64.75 m · Range 8,100 nm · MTOW 316 t</p>
+      </div>
+
+      <!-- Bottom metrics -->
+      <div class="hero__metrics">
+        <div class="hero__metric">
+          <span class="hero__metric-val">22</span>
+          <span class="hero__metric-key">Fan Blades</span>
+        </div>
+        <div class="hero__metric-div"></div>
+        <div class="hero__metric">
+          <span class="hero__metric-val">97,000 lbf</span>
+          <span class="hero__metric-key">Max Thrust</span>
+        </div>
+        <div class="hero__metric-div"></div>
+        <div class="hero__metric">
+          <span class="hero__metric-val">1,700°C</span>
+          <span class="hero__metric-key">Combustion</span>
+        </div>
+      </div>
+
+      <!-- Scroll cue -->
+      <div class="hero__scroll-cue">Scroll to explore</div>
+    </section>
+
     <!-- Faux editorial host page to demonstrate the embedded component -->
+    <div class="article-wrapper">
     <header class="host-nav">
       <div class="host-nav__brand">AXEL NOVA · DISPATCH</div>
       <nav class="host-nav__links">
@@ -77,8 +134,10 @@
       <span>© Axel Nova Dispatch</span>
       <span>Built by Qie · 2026</span>
     </footer>
+    </div><!-- /.article-wrapper -->
 
     <!-- Component entry point -->
     <script type="module" src="/src/jet-engine.js"></script>
+    <script type="module" src="/src/host-animations.js"></script>
   </body>
 </html>

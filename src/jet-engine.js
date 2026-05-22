@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import gsap from 'gsap';
 import { buildEngine } from './engine-model.js';
+import { loadAircraftWithFallback } from './model-loader.js';
 import {
   buildIntakeParticles,
   buildExhaustParticles,
@@ -27,6 +28,39 @@ import { initTooltips, initIgnition } from './interactions.js';
 // `raw` is the numeric value for the animated counter;
 // `value` is the pre-formatted string used in the initial static render.
 const SCENES = [
+  {
+    id: 'intro',
+    label: 'Airbus · A350-1000',
+    title: 'Explore the aircraft.',
+    subline: 'The Airbus A350-1000 — the longest-range widebody in service. Orbit freely, then dive deep into the engine.',
+    stats: [
+      { label: 'Max range',  value: '16,100', raw: 16100, unit: 'km' },
+      { label: 'Passengers', value: '369',    raw: 369,   unit: '' },
+    ],
+    accent: '#4FC3F7',
+  },
+  {
+    id: 'engine-approach',
+    label: '· The Engine',
+    title: 'The engine.',
+    subline: 'Powering the A350-1000: the Rolls-Royce Trent XWB-97 — the most powerful civil turbofan ever built.',
+    stats: [
+      { label: 'Engines',      value: '2',       raw: 2,      unit: '' },
+      { label: 'Total thrust', value: '194,000', raw: 194000, unit: 'lbf' },
+    ],
+    accent: '#4FC3F7',
+  },
+  {
+    id: 'exterior',
+    label: '· Engine Exterior',
+    title: 'The machine beneath the wing.',
+    subline: 'Three metres across. Seven tonnes. Mounted on a swept titanium pylon — and from the outside, deceptively quiet.',
+    stats: [
+      { label: 'Dry weight', value: '7,277', raw: 7277, unit: 'kg' },
+      { label: 'Diameter',   value: '3.0',   raw: 3.0,  unit: 'm' },
+    ],
+    accent: '#4FC3F7',
+  },
   {
     id: 'intake',
     label: '01 · Intake',
@@ -87,20 +121,46 @@ const SCENES = [
 // ---------- COMPONENT STYLES ----------
 const styles = `
   :host {
-    --bg:       #0A0B0F;
-    --surface:  #13151C;
-    --cool:     #4FC3F7;
-    --hot:      #FF6B35;
-    --ink:      #F5F5F0;
-    --muted:    #8B8D98;
-    --hairline: rgba(255, 255, 255, 0.08);
+    /* Design system tokens (Shadow DOM scope) */
+    --color-bg-base:        #0A0B0F;
+    --color-bg-surface:     #13151C;
+    --color-bg-elevated:    #1C1F28;
+    --color-ink-primary:    #F5F5F0;
+    --color-ink-secondary:  #B8BAC3;
+    --color-ink-muted:      #8B8D98;
+    --color-ink-faint:      #5A5C66;
+    --color-cool:           #4FC3F7;
+    --color-cool-soft:      #8FB4C8;
+    --color-hot:            #FF6B35;
+    --color-hot-soft:       #FF8C42;
+    --color-amber:          #FFB07A;
+    --color-hairline:       rgba(255, 255, 255, 0.08);
+    --color-hairline-soft:  rgba(255, 255, 255, 0.04);
+    --color-focus-ring:     rgba(79, 195, 247, 0.5);
+    --font-display: 'Playfair Display Variable';
+    --font-body:    'Geist', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono Variable', 'SF Mono', monospace;
+    --ease-out:      cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-in-out:   cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-precise:  cubic-bezier(0.4, 0, 0.2, 1);
+    --radius-sharp:  2px;
+    --shadow-glow-hot: 0 0 32px rgba(255, 107, 53, 0.4);
+
+    /* Legacy aliases — keep existing var() references working */
+    --bg:       var(--color-bg-base);
+    --surface:  var(--color-bg-surface);
+    --cool:     var(--color-cool);
+    --hot:      var(--color-hot);
+    --ink:      var(--color-ink-primary);
+    --muted:    var(--color-ink-muted);
+    --hairline: var(--color-hairline);
 
     display: block;
     width: 100%;
     max-width: 1440px;
     margin: 0 auto;
-    font-family: 'Geist', system-ui, sans-serif;
-    color: var(--ink);
+    font-family: var(--font-body);
+    color: var(--color-ink-primary);
   }
 
   .stage {
@@ -109,7 +169,7 @@ const styles = `
     aspect-ratio: 1440 / 900;
     max-height: 900px;
     background: radial-gradient(ellipse at center, #14161E 0%, var(--bg) 70%);
-    border-radius: 12px;
+    border-radius: 12px; /* --radius-surface */
     overflow: hidden;
     border: 1px solid var(--hairline);
   }
@@ -142,11 +202,12 @@ const styles = `
   }
 
   .topbar__label {
-    font-size: 11px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.2em;
-    color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-ink-muted);
   }
 
   .topbar__progress {
@@ -161,7 +222,7 @@ const styles = `
     height: 100%;
     width: 20%;
     background: var(--ink);
-    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1);
   }
 
   /* ---------- HEADLINE OVERLAY ---------- */
@@ -176,8 +237,8 @@ const styles = `
   }
 
   .headline__title {
-    font-family: 'Fraunces', serif;
-    font-weight: 300;
+    font-family: var(--font-display);
+    font-weight: 400;
     font-size: clamp(32px, 4.5vw, 56px);
     line-height: 1.05;
     letter-spacing: -0.02em;
@@ -185,11 +246,13 @@ const styles = `
   }
 
   .headline__subline {
+    font-family: var(--font-body);
     font-size: 15px;
-    line-height: 1.5;
-    color: var(--muted);
+    line-height: 1.6;
+    color: var(--color-ink-secondary);
     max-width: 540px;
     margin: 0 auto;
+    letter-spacing: -0.005em;
   }
 
   /* ---------- DATA READOUT ---------- */
@@ -207,24 +270,27 @@ const styles = `
   .data__item { text-align: center; }
 
   .data__label {
+    font-family: var(--font-mono);
     font-size: 10px;
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.2em;
-    color: var(--muted);
+    color: var(--color-ink-muted);
     margin-bottom: 6px;
-    font-family: 'JetBrains Mono', monospace;
   }
 
   .data__value {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 18px;
     font-weight: 500;
-    color: var(--ink);
+    color: var(--color-ink-primary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 
   .data__unit {
     font-size: 12px;
-    color: var(--muted);
+    color: var(--color-ink-muted);
     margin-left: 4px;
   }
 
@@ -244,7 +310,7 @@ const styles = `
     border-radius: 50%;
     background: var(--hairline);
     cursor: pointer;
-    transition: all 0.3s;
+    transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     border: none;
     padding: 0;
   }
@@ -254,70 +320,130 @@ const styles = `
     transform: scale(1.5);
   }
 
-  .dot:hover { background: var(--muted); }
+  .dot:hover:not(.is-active) { background: var(--color-ink-muted); }
 
   /* ---------- TOOLTIP ---------- */
   .tooltip {
     position: absolute;
-    background: rgba(19, 21, 28, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 10px 14px;
-    border-radius: 6px;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-hairline);
+    border-radius: 4px;
+    padding: 12px 16px;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s var(--ease-out);
     z-index: 20;
-    min-width: 160px;
-    max-width: 220px;
+    min-width: 180px;
+    max-width: 240px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--color-hairline-soft);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .tooltip.is-visible { opacity: 1; }
 
   .tooltip__name {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 10px;
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--ink);
-    margin-bottom: 5px;
+    letter-spacing: 0.2em;
+    color: var(--color-ink-muted);
+    margin-bottom: 8px;
   }
 
   .tooltip__detail {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: var(--muted);
-    line-height: 1.6;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: 14px;
+    color: var(--color-ink-primary);
+    line-height: 1.35;
+    letter-spacing: -0.01em;
   }
 
-  /* ---------- IGNITE BUTTON ---------- */
+  /* ---------- EXPLORE / VIEW ENGINE BUTTON (ghost style) ---------- */
+  .explore-btn {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: transparent;
+    border: 1px solid var(--color-hairline);
+    color: var(--color-ink-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    border-radius: var(--radius-sharp);
+    cursor: pointer;
+    z-index: 15;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    white-space: nowrap;
+    transition: color var(--duration-quick) var(--ease-precise),
+                border-color var(--duration-quick) var(--ease-precise);
+  }
+
+  .explore-btn:hover {
+    color: var(--color-ink-primary);
+    border-color: var(--color-ink-muted);
+  }
+
+  .explore-btn:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 3px;
+  }
+
+  @keyframes explorePulse {
+    0%   { box-shadow: 0 0 0 0px  rgba(245, 245, 240, 0.2); }
+    70%  { box-shadow: 0 0 0 10px rgba(245, 245, 240, 0);   }
+    100% { box-shadow: 0 0 0 0px  rgba(245, 245, 240, 0);   }
+  }
+
+  .explore-btn.is-pulsing { animation: explorePulse 2.4s var(--ease-out) infinite; }
+
+  /* ---------- IGNITE BUTTON (primary style) ---------- */
   .ignite-btn {
     position: absolute;
     top: 38%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: transparent;
-    border: 1px solid var(--hot);
-    color: var(--hot);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.22em;
+    background: var(--color-ink-primary);
+    border: none;
+    color: var(--color-bg-base);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
-    padding: 13px 32px;
-    border-radius: 3px;
+    padding: 14px 28px;
+    border-radius: var(--radius-sharp);
     cursor: pointer;
     z-index: 15;
-    display: none;         /* shown via JS when Scene 3 activates */
+    display: none;
     align-items: center;
     gap: 8px;
     opacity: 0;
-    transition: background 0.25s, box-shadow 0.25s;
+    transition: background var(--duration-quick) var(--ease-precise),
+                color var(--duration-quick) var(--ease-precise),
+                transform var(--duration-quick) var(--ease-precise),
+                box-shadow var(--duration-quick) var(--ease-precise);
   }
 
   .ignite-btn:hover {
-    background: rgba(255, 107, 53, 0.1);
-    box-shadow: 0 0 24px rgba(255, 107, 53, 0.25);
+    background: var(--color-hot);
+    color: var(--color-ink-primary);
+    transform: translate(-50%, calc(-50% - 1px));
+    box-shadow: var(--shadow-glow-hot);
+  }
+
+  .ignite-btn:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 3px;
   }
 
   /* ---------- LOADING ---------- */
@@ -327,14 +453,15 @@ const styles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg);
-    color: var(--muted);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    background: var(--color-bg-base);
+    color: var(--color-ink-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     z-index: 100;
-    transition: opacity 0.6s;
+    transition: opacity var(--duration-standard);
   }
 
   .loading.is-hidden {
@@ -352,6 +479,21 @@ const styles = `
     .data { gap: 24px; bottom: 64px; }
     .data__value { font-size: 15px; }
     .ignite-btn { font-size: 10px; padding: 11px 24px; }
+    .explore-btn { font-size: 10px; padding: 11px 20px; bottom: 64px; }
+  }
+
+  /* ---------- FOCUS & ACCESSIBILITY ---------- */
+  button:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* ---------- REDUCED MOTION ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 `;
 
@@ -384,6 +526,7 @@ class JetEngineInfographic extends HTMLElement {
       <style>${styles}</style>
       <div class="stage">
         <div class="canvas-host"></div>
+        <button class="explore-btn" data-explore>&#x2192;&nbsp;&nbsp;VIEW ENGINE</button>
 
         <div class="topbar">
           <div class="topbar__label" data-scene-label>${scene.label}</div>
@@ -415,7 +558,7 @@ class JetEngineInfographic extends HTMLElement {
           <div class="tooltip__detail" data-tooltip-detail></div>
         </div>
 
-        <!-- Ignite button shown only during Scene 3 -->
+        <!-- Ignite button shown only during Scene 4 (Combustion) -->
         <button class="ignite-btn" data-ignite aria-label="Ignite engine">
           ⚡&nbsp;IGNITE
         </button>
@@ -444,15 +587,16 @@ class JetEngineInfographic extends HTMLElement {
 
     // Scene
     this.threeScene = new THREE.Scene();
-    this.threeScene.fog = new THREE.Fog(0x0a0b0f, 8, 18);
+    this.threeScene.fog = new THREE.Fog(0xB8CDD8, 52, 135); // sky-blue fog for Scene 0; goes dark in Scene 2+
 
-    // Camera — starts at Scene 1 position
-    this.camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
-    this.camera.position.set(6, 1.5, 6);
+    // Camera — starts at Scene 0 (full aircraft) position
+    this.camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 300);
+    this.camera.position.set(12, 10, 50);
 
     // cameraTarget is tweened by GSAP in transitionScene();
     // the animate loop feeds it into camera.lookAt() every frame.
-    this.cameraTarget = new THREE.Vector3(2, 0, 0); // Scene 1 lookAt
+    // Scene 0 lookAt — matches aircraft body center after engine-alignment shift in model-loader.js
+    this.cameraTarget = new THREE.Vector3(-7.7, 3, -1.2);
     this.camera.lookAt(this.cameraTarget);
 
     // Renderer
@@ -463,11 +607,14 @@ class JetEngineInfographic extends HTMLElement {
     this.renderer.toneMappingExposure = 1.0;
     host.appendChild(this.renderer.domElement);
 
-    // Lighting — cinematic three-point setup
-    this.threeScene.add(new THREE.AmbientLight(0x404858, 0.6));
+    // Sky background for Scene 0 — switched to dark in Scenes 1–5
+    this.threeScene.background = new THREE.Color(0xB8CDD8);
 
-    const key = new THREE.DirectionalLight(0xffffff, 1.2);
-    key.position.set(5, 6, 5);
+    // Lighting
+    this.threeScene.add(new THREE.AmbientLight(0xC8D8E8, 1.2)); // bright sky ambient for Scene 0
+
+    const key = new THREE.DirectionalLight(0xffffff, 1.8); // sun
+    key.position.set(20, 30, 15);
     this.threeScene.add(key);
 
     const rim = new THREE.DirectionalLight(0x4fc3f7, 0.8);
@@ -478,8 +625,20 @@ class JetEngineInfographic extends HTMLElement {
     fill.position.set(-2, -2, 2);
     this.threeScene.add(fill);
 
-    // Engine model
+    // Store light refs to adjust per scene
+    this._ambientLight = this.threeScene.children.find(c => c.isAmbientLight);
+    this._keyLight = key;
+
+    // Aircraft body — loaded asynchronously from public/a350.glb.
+    // Falls back to the procedural buildAircraftBody() if the file is missing.
+    // scenes.js guards every access with `if (component.aircraftBody)` so it's
+    // safe for this to be null until the model arrives.
+    this.aircraftBody = null;
+    this._loadAircraft();
+
+    // Detailed engine model — hidden in Scene 0, shown in Scenes 1–6
     this.engine = buildEngine();
+    this.engine.visible = false;
     this.threeScene.add(this.engine);
 
     // Particle systems — added to the Three.js scene, visibility toggled per scene
@@ -488,14 +647,16 @@ class JetEngineInfographic extends HTMLElement {
     this.threeScene.add(this.intakeParticles);
     this.threeScene.add(this.exhaustParticles);
 
-    // Orbit controls — disabled until Scene 5
+    // Orbit controls — starts targeting the aircraft body; switches to engine in Scene 6.
+    // Kept disabled until _loadAircraft fires so the user can't orbit an empty scene.
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping  = true;
-    this.controls.dampingFactor  = 0.08;
-    this.controls.enabled        = false;
-    this.controls.enablePan      = false;
-    this.controls.minDistance    = 4;
-    this.controls.maxDistance    = 12;
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.enablePan     = false;
+    this.controls.enabled       = false;
+    this.controls.target.set(-7.7, 3, -1.2);
+    this.controls.minDistance   = 18;
+    this.controls.maxDistance   = 65;
 
     // Cache references to parts that need per-frame or event-driven animation
     this.fan            = this.engine.getObjectByName('fan');
@@ -507,13 +668,54 @@ class JetEngineInfographic extends HTMLElement {
     this.resizeObserver = new ResizeObserver(() => this.onResize());
     this.resizeObserver.observe(host);
 
-    // Scene 1 particles start visible
-    this.intakeParticles.visible = true;
+    // Particles start hidden (Scene 0 is the aircraft intro)
+    this.intakeParticles.visible = false;
 
-    // Dismiss the loading overlay
-    setTimeout(() => {
-      this.shadowRoot.querySelector('[data-loading]')?.classList.add('is-hidden');
-    }, 300);
+    // Loading overlay is dismissed inside _loadAircraft() once the model is ready
+  }
+
+  // ---------- AIRCRAFT MODEL LOADER ----------
+  _loadAircraft() {
+    const loadingEl = this.shadowRoot.querySelector('[data-loading]');
+    if (loadingEl) loadingEl.textContent = 'Loading aircraft · 0%';
+
+    loadAircraftWithFallback(
+      'a350.glb',
+
+      // onReady — called for both GLB success and procedural fallback
+      (model) => {
+        this.aircraftBody = model;
+        this.threeScene.add(model);
+        if (loadingEl) {
+          loadingEl.style.transition = 'opacity 0.8s';
+          loadingEl.classList.add('is-hidden');
+        }
+
+        // Enable aircraft orbit
+        this.controls.enabled = true;
+
+        // Show CTA — "VIEW ENGINE" in Scene 0 proceeds to the side-angle shot
+        const exploreBtn = this.shadowRoot.querySelector('[data-explore]');
+        if (exploreBtn) {
+          exploreBtn.innerHTML = '&#x2192;&nbsp;&nbsp;VIEW ENGINE';
+          exploreBtn.style.display = 'flex';
+          gsap.fromTo(exploreBtn, { opacity: 0 }, { opacity: 1, duration: 0.8, delay: 0.8 });
+          setTimeout(() => exploreBtn.classList.add('is-pulsing'), 2000);
+        }
+      },
+
+      // onPct — download progress 0–100
+      (pct) => {
+        if (loadingEl && !loadingEl.classList.contains('is-hidden')) {
+          loadingEl.textContent = `Loading aircraft · ${pct}%`;
+        }
+      },
+
+      // onFallback — GLB missing or failed, brief notice before fallback fires
+      () => {
+        if (loadingEl) loadingEl.textContent = 'No GLB found · using built-in model';
+      },
+    );
   }
 
   onResize() {
@@ -532,6 +734,15 @@ class JetEngineInfographic extends HTMLElement {
         this.goToScene(parseInt(e.target.dataset.dot, 10));
       });
     });
+
+    // CTA button: Scene 0 → 1 (side angle), Scene 1 → 2 (engine anatomy)
+    const exploreBtn = this.shadowRoot.querySelector('[data-explore]');
+    if (exploreBtn) {
+      exploreBtn.addEventListener('click', () => {
+        if (this.currentScene === 0) this.goToScene(1);
+        else if (this.currentScene === 1) this.goToScene(2);
+      });
+    }
 
     // Wheel / touch / keyboard navigation from scenes.js
     initWheelNavigation(this);

@@ -52,8 +52,8 @@ export function initTooltips(component) {
   const meshes = Array.from(meshToPart.keys());
 
   host.addEventListener('mousemove', (e) => {
-    // Tooltips are only meaningful once the camera is close enough to see parts
-    if (component.currentScene < 2) {
+    // Tooltips are only meaningful in Scenes 2–5 (engine anatomy, camera close)
+    if (component.currentScene < 3) {
       tooltip.classList.remove('is-visible');
       return;
     }

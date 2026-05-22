@@ -9,7 +9,7 @@
  *   Z   lateral      (+ = port / viewer side)
  *
  * Named objects consumed by animation + tooltip systems:
- *   fan, compressor, combustion, combustionGlow, turbine, nozzle, wing, pylon
+ *   fan, compressor, combustion, combustionGlow, turbine, nozzle
  */
 
 import * as THREE from 'three';
@@ -21,7 +21,7 @@ export function buildEngine() {
   // ─── Materials ─────────────────────────────────────────────────────────────
 
   const shellMat = new THREE.MeshStandardMaterial({
-    color: 0x2a2d36, metalness: 0.82, roughness: 0.38,
+    color: 0xEDF0F4, metalness: 0.22, roughness: 0.58, // airline white paint
   });
   const bladeMat = new THREE.MeshStandardMaterial({
     color: 0xc9ccd1, metalness: 0.96, roughness: 0.18,
@@ -36,10 +36,6 @@ export function buildEngine() {
   const glowMat = new THREE.MeshBasicMaterial({
     color: 0xff8c42, transparent: true, opacity: 0.0,
   });
-  const wingMat = new THREE.MeshStandardMaterial({
-    color: 0x23262e, metalness: 0.78, roughness: 0.40,
-  });
-
   // ─── 1. NACELLE ─────────────────────────────────────────────────────────────
   // Trent XWB has a very large-diameter fan cowl (high bypass ratio)
   // with a distinct "step" to the narrower core cowl at the bypass exit.
@@ -218,119 +214,158 @@ export function buildEngine() {
   }
   root.add(turbine);
 
-  // ─── 7. PYLON ────────────────────────────────────────────────────────────────
-  // Tapered vertical strut connecting the engine nacelle to the wing.
-  // Wider at the top (wing box attachment), narrower at the bottom.
+  return root;
+}
 
-  const pylonGroup = new THREE.Group();
-  pylonGroup.name = 'pylon';
+// ─────────────────────────────────────────────────────────────────────────────
+// FULL AIRCRAFT BODY — Airbus A350-1000 proportions
+// Shown in Scene 0 only. Hidden when engine anatomy is active.
+//
+// After rotation.z = π/2 on cylinders:  "top" (+Y → -X) = rear end
+//                                        "bottom" (-Y → +X) = forward end
+//
+// Fuselage centerline: y = 6.0  (3 units above wing root at y = 3)
+// Engine pods:         z = ±9   (under inner wing, ~41% semi-span)
+// Fuselage span:       x = -26 (tail) → x = +24 (nose apex)
+// Wing semi-span:      z = 3 → z = 22  (~19 units each side)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Main strut — three stacked boxes to approximate taper
-  const pylonSegs = [
-    { y: 1.84, h: 0.64, cz: 0.62 },
-    { y: 2.36, h: 0.64, cz: 0.72 },
-    { y: 2.88, h: 0.64, cz: 0.84 },
+export function buildAircraftBody() {
+  const root = new THREE.Group();
+  root.name = 'aircraftBody';
+
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xEEF1F5, metalness: 0.18, roughness: 0.60,
+    transparent: true, opacity: 1.0,
+  });
+  const trimMat = new THREE.MeshStandardMaterial({
+    color: 0xD2D6DC, metalness: 0.40, roughness: 0.48,
+    transparent: true, opacity: 1.0,
+  });
+  const bladeMat = new THREE.MeshStandardMaterial({
+    color: 0xC9CCD1, metalness: 0.96, roughness: 0.18,
+    transparent: true, opacity: 1.0,
+  });
+  const windowMat = new THREE.MeshStandardMaterial({
+    color: 0x1A2535, metalness: 0.1, roughness: 0.8,
+    transparent: true, opacity: 1.0,
+  });
+
+  const FY = 6.0; // fuselage centerline Y
+
+  // ── Nose profile — 3 tapered cylinder sections ───────────────────────────
+  // After rotation.z=π/2: radiusTop → -X (rear), radiusBottom → +X (forward)
+  // Sections span: tip[22→24], mid[20→22], base[18→20], then barrel[−20→18]
+
+  const noseSecs = [
+    { rT: 1.5, rB: 0.0, h: 2.0, cx: 23.0 },  // nose tip   x=22→24
+    { rT: 2.5, rB: 1.5, h: 2.0, cx: 21.0 },  // nose mid   x=20→22
+    { rT: 3.0, rB: 2.5, h: 2.0, cx: 19.0 },  // nose base  x=18→20
   ];
-  for (const seg of pylonSegs) {
-    const geo = new THREE.BoxGeometry(0.22, seg.h, seg.cz);
-    const mesh = new THREE.Mesh(geo, shellMat);
-    mesh.position.set(0.18, seg.y, 0);
-    pylonGroup.add(mesh);
+  for (const s of noseSecs) {
+    const geo = new THREE.CylinderGeometry(s.rT, s.rB, s.h, 48);
+    const mesh = new THREE.Mesh(geo, bodyMat);
+    mesh.rotation.z = Math.PI / 2;
+    mesh.position.set(s.cx, FY, 0);
+    root.add(mesh);
   }
 
-  // Lower attachment fillet (nacelle–pylon junction)
-  const lowerFilletGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.18, 16);
-  const lowerFillet = new THREE.Mesh(lowerFilletGeo, shellMat);
-  lowerFillet.position.set(0.18, 1.52, 0);
-  pylonGroup.add(lowerFillet);
+  // ── Main barrel  x: −20 → +18 ────────────────────────────────────────────
+  const barrelGeo = new THREE.CylinderGeometry(3.0, 3.0, 38, 48);
+  const barrel = new THREE.Mesh(barrelGeo, bodyMat);
+  barrel.rotation.z = Math.PI / 2;
+  barrel.scale.y = 0.91; // very slight oval cross-section
+  barrel.position.set(-1.0, FY, 0);
+  root.add(barrel);
 
-  // Upper attachment plate (pylon–wing junction)
-  const upperPlateGeo = new THREE.BoxGeometry(0.24, 0.12, 1.1);
-  const upperPlate = new THREE.Mesh(upperPlateGeo, shellMat);
-  upperPlate.position.set(0.18, 3.18, 0);
-  pylonGroup.add(upperPlate);
+  // ── Tail taper  x: −26 → −20 ─────────────────────────────────────────────
+  const tailGeo = new THREE.CylinderGeometry(0.0, 3.0, 6.0, 32);
+  const tailSec = new THREE.Mesh(tailGeo, bodyMat);
+  tailSec.rotation.z = Math.PI / 2;
+  tailSec.position.set(-23.0, FY, 0);
+  root.add(tailSec);
 
-  root.add(pylonGroup);
+  // ── Window band — thin dark strip along fuselage waterline ───────────────
+  const winBandGeo = new THREE.CylinderGeometry(3.02, 3.02, 34, 48, 1, true,
+    Math.PI * 0.62, Math.PI * 0.76); // arc covering window zone only
+  const winBand = new THREE.Mesh(winBandGeo, windowMat);
+  winBand.rotation.z = Math.PI / 2;
+  winBand.scale.y = 0.91;
+  winBand.position.set(-1.0, FY - 0.4, 0); // slightly below centerline
+  root.add(winBand);
 
-  // ─── 8. WING STUB ────────────────────────────────────────────────────────────
-  // Inboard section of the A350-1000's swept wing (~35° leading-edge sweep).
-  // Both halves built from a custom swept-trapezoid BufferGeometry.
+  // ── Main wings ───────────────────────────────────────────────────────────
+  root.add(_buildMainWing(bodyMat,  1));
+  root.add(_buildMainWing(bodyMat, -1));
 
-  const wingGroup = new THREE.Group();
-  wingGroup.name = 'wing';
-
-  // Port (z > 0) and starboard (z < 0) halves
+  // Wing leading-edge caps
+  // LE goes from (4, 3.04, 3*side) to (-7, 3.04, 22*side)
+  // ΔX=−11, ΔZ=19  →  length≈21.95
   for (const side of [1, -1]) {
-    const halfMesh = _buildWingHalf(wingMat, side);
-    wingGroup.add(halfMesh);
-  }
-
-  // Root section that spans the pylon width (bridges port and starboard)
-  const wingRootGeo = new THREE.BoxGeometry(2.45, 0.19, 0.44);
-  const wingRoot = new THREE.Mesh(wingRootGeo, wingMat);
-  wingRoot.position.set(0.28, 3.04, 0);
-  wingGroup.add(wingRoot);
-
-  // Leading-edge caps (rounded rod along each half's LE)
-  for (const side of [1, -1]) {
-    const leGeo = new THREE.CylinderGeometry(0.09, 0.065, 4.4, 8);
-    const le = new THREE.Mesh(leGeo, bladeMat);
-    // LE direction vector: from (1.5, 0.22*side) → (0.1, 4.5*side) in XZ
-    const dir = new THREE.Vector3(-1.4, 0, 4.28 * side).normalize();
+    const leLen = Math.sqrt(11 * 11 + 19 * 19); // ≈21.95
+    const leGeo = new THREE.CylinderGeometry(0.038, 0.125, leLen, 8);
+    const le = new THREE.Mesh(leGeo, trimMat);
+    const dir = new THREE.Vector3(-11, 0, 19 * side).normalize();
     le.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-    le.position.set(0.8, 3.04, 2.36 * side); // midpoint of LE
-    wingGroup.add(le);
+    le.position.set(-1.5, 3.04, 12.5 * side);
+    root.add(le);
   }
 
-  root.add(wingGroup);
+  // Wing-body fairing (smooth blend at root)
+  for (const side of [1, -1]) {
+    const fairGeo = new THREE.CylinderGeometry(0.55, 0.55, 5.8, 16);
+    const fair = new THREE.Mesh(fairGeo, bodyMat);
+    fair.rotation.x = Math.PI / 2;
+    fair.position.set(1.0, 3.04, 3.0 * side);
+    root.add(fair);
+  }
+
+  // ── Vertical tail fin ────────────────────────────────────────────────────
+  root.add(_buildVFin2(bodyMat, FY));
+
+  // ── Horizontal stabilizers ───────────────────────────────────────────────
+  root.add(_buildHStab2(bodyMat,  1, FY));
+  root.add(_buildHStab2(bodyMat, -1, FY));
+
+  // ── Engine pods at z = ±9 ────────────────────────────────────────────────
+  for (const side of [1, -1]) {
+    root.add(_buildPodPylon2(bodyMat, side));
+    root.add(_buildPod2(bodyMat, trimMat, bladeMat, side));
+  }
+
+  // ── Runway + environment ─────────────────────────────────────────────────
+  root.add(_buildRunway());
 
   return root;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ── Wings ────────────────────────────────────────────────────────────────────
+// Root z=±3 (fuselage side), tip z=±22. ~30° leading-edge sweep (A350-like).
+// Root chord=6, tip chord=2, taper ratio≈0.33.
 
-/**
- * One swept wing half as a closed BufferGeometry.
- * side = 1 → port (z > 0),  side = -1 → starboard (z < 0).
- *
- * Plan-form (viewed from above):
- *   Root  z≈0.22  chord x: 1.5 (LE) → −0.95 (TE)
- *   Tip   z≈4.5   chord x: 0.1 (LE) → −1.45 (TE)   ~32° LE sweep
- */
-function _buildWingHalf(mat, side) {
-  const yt = 3.14, yb = 2.95; // top / bottom y (wing thickness ≈ 0.19)
+function _buildMainWing(mat, side) {
+  const yt = 3.12, yb = 2.93;
+  const z0 = 3.0 * side, z1 = 22.0 * side;
+  const xLE0 = 4.0, xTE0 = -2.0;
+  const xLE1 = -7.0, xTE1 = -9.0;
 
-  const z0 = 0.22 * side; // inner (root) z
-  const z1 = 4.5  * side; // outer (tip)  z
-
-  // Leading/trailing edge x at root and tip
-  const xLE0 = 1.5,  xTE0 = -0.95;
-  const xLE1 = 0.1,  xTE1 = -1.45;
-
-  // 8 vertices: 0–3 top surface, 4–7 bottom surface
-  // 0=rootLE  1=tipLE  2=tipTE  3=rootTE
   const pos = new Float32Array([
-    xLE0, yt, z0,   xLE1, yt, z1,   xTE1, yt, z1,   xTE0, yt, z0,
-    xLE0, yb, z0,   xLE1, yb, z1,   xTE1, yb, z1,   xTE0, yb, z0,
+    xLE0, yt, z0,  xLE1, yt, z1,  xTE1, yt, z1,  xTE0, yt, z0,
+    xLE0, yb, z0,  xLE1, yb, z1,  xTE1, yb, z1,  xTE0, yb, z0,
   ]);
 
-  // Triangle indices — winding flips for the mirrored side so normals stay outward
   let idx;
   if (side === 1) {
     idx = [
-      0, 1, 2,  0, 2, 3,   // top   (+Y)
-      4, 6, 5,  4, 7, 6,   // bottom(-Y)
-      0, 4, 5,  0, 5, 1,   // leading edge
-      3, 2, 6,  3, 6, 7,   // trailing edge
-      1, 5, 6,  1, 6, 2,   // tip
+      0, 1, 2,  0, 2, 3,   4, 6, 5,  4, 7, 6,
+      0, 4, 5,  0, 5, 1,   3, 2, 6,  3, 6, 7,
+      1, 5, 6,  1, 6, 2,
     ];
   } else {
     idx = [
-      0, 2, 1,  0, 3, 2,   // top   (reversed for mirror)
-      4, 5, 6,  4, 6, 7,   // bottom
-      0, 5, 4,  0, 1, 5,   // leading edge
-      3, 6, 2,  3, 7, 6,   // trailing edge
-      1, 6, 5,  1, 2, 6,   // tip
+      0, 2, 1,  0, 3, 2,   4, 5, 6,  4, 6, 7,
+      0, 5, 4,  0, 1, 5,   3, 6, 2,  3, 7, 6,
+      1, 6, 5,  1, 2, 6,
     ];
   }
 
@@ -338,6 +373,195 @@ function _buildWingHalf(mat, side) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setIndex(idx);
   geo.computeVertexNormals();
-
   return new THREE.Mesh(geo, mat);
+}
+
+// ── Vertical tail fin ────────────────────────────────────────────────────────
+
+function _buildVFin2(mat, FY) {
+  const z = 0.18;
+  // Root x=−20→−24 at y=FY; tip x=−22→−24 at y=FY+5.5
+  const TY = FY + 5.5;
+  const pos = new Float32Array([
+    -20, FY,  z,  -24, FY,  z,  -24, TY,  z,  -22, TY,  z,
+    -20, FY, -z,  -24, FY, -z,  -24, TY, -z,  -22, TY, -z,
+  ]);
+  const idx = [
+    0, 3, 2,  0, 2, 1,   4, 5, 6,  4, 6, 7,
+    0, 4, 7,  0, 7, 3,   1, 2, 6,  1, 6, 5,
+    0, 1, 5,  0, 5, 4,   3, 7, 6,  3, 6, 2,
+  ];
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, mat);
+}
+
+// ── Horizontal stabilizers ───────────────────────────────────────────────────
+
+function _buildHStab2(mat, side, FY) {
+  const yt = FY + 0.09, yb = FY - 0.09;
+  const z0 = 0.4 * side, z1 = 8.0 * side;
+  const xLE0 = -19.5, xTE0 = -23.8;
+  const xLE1 = -22.0, xTE1 = -24.2;
+
+  const pos = new Float32Array([
+    xLE0, yt, z0,  xLE1, yt, z1,  xTE1, yt, z1,  xTE0, yt, z0,
+    xLE0, yb, z0,  xLE1, yb, z1,  xTE1, yb, z1,  xTE0, yb, z0,
+  ]);
+
+  let idx;
+  if (side === 1) {
+    idx = [
+      0, 1, 2,  0, 2, 3,   4, 6, 5,  4, 7, 6,
+      0, 4, 5,  0, 5, 1,   3, 2, 6,  3, 6, 7,
+      1, 5, 6,  1, 6, 2,
+    ];
+  } else {
+    idx = [
+      0, 2, 1,  0, 3, 2,   4, 5, 6,  4, 6, 7,
+      0, 5, 4,  0, 1, 5,   3, 6, 2,  3, 7, 6,
+      1, 6, 5,  1, 2, 6,
+    ];
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, mat);
+}
+
+// ── Engine pod (simplified nacelle, no internals) ────────────────────────────
+
+function _buildPod2(bodyMat, trimMat, bladeMat, side) {
+  const pod = new THREE.Group();
+
+  // Fan cowl
+  const cowlGeo = new THREE.CylinderGeometry(1.52, 1.5, 3.6, 48, 1, false);
+  const cowl = new THREE.Mesh(cowlGeo, bodyMat);
+  cowl.rotation.z = Math.PI / 2;
+  cowl.position.x = 0.8;
+  pod.add(cowl);
+
+  // Intake lip
+  const lipGeo = new THREE.TorusGeometry(1.5, 0.08, 12, 48);
+  const lip = new THREE.Mesh(lipGeo, trimMat);
+  lip.position.x = 2.6;
+  lip.rotation.y = Math.PI / 2;
+  pod.add(lip);
+
+  // Bypass exit ring
+  const bypassGeo = new THREE.TorusGeometry(1.48, 0.022, 8, 48);
+  const bypass = new THREE.Mesh(bypassGeo, trimMat);
+  bypass.position.x = -1.0;
+  bypass.rotation.y = Math.PI / 2;
+  pod.add(bypass);
+
+  // Core cowl
+  const coreGeo = new THREE.CylinderGeometry(0.88, 1.08, 2.0, 48, 1, false);
+  const core = new THREE.Mesh(coreGeo, bodyMat);
+  core.rotation.z = Math.PI / 2;
+  core.position.x = -1.8;
+  pod.add(core);
+
+  // Hot nozzle
+  const nozGeo = new THREE.CylinderGeometry(0.5, 0.68, 0.5, 32, 1, false);
+  const noz = new THREE.Mesh(nozGeo, trimMat);
+  noz.rotation.z = Math.PI / 2;
+  noz.position.x = -3.06;
+  pod.add(noz);
+
+  // Spinner
+  const spinGeo = new THREE.ConeGeometry(0.27, 0.65, 20);
+  const spin = new THREE.Mesh(spinGeo, bladeMat);
+  spin.rotation.z = -Math.PI / 2;
+  spin.position.x = 2.42;
+  pod.add(spin);
+
+  // Chevrons
+  for (let i = 0; i < 16; i++) {
+    const angle = (i / 16) * Math.PI * 2;
+    const chevGeo = new THREE.BoxGeometry(0.20, 0.033, 0.078);
+    const chev = new THREE.Mesh(chevGeo, trimMat);
+    chev.position.set(-0.97, Math.cos(angle) * 1.5, Math.sin(angle) * 1.5);
+    chev.rotation.x = angle + Math.PI / 16;
+    pod.add(chev);
+  }
+
+  pod.position.set(0, 0, 9.0 * side);
+  return pod;
+}
+
+// ── Pod pylon (engine to wing strut) ─────────────────────────────────────────
+
+function _buildPodPylon2(mat, side) {
+  const g = new THREE.Group();
+
+  // Three stacked boxes tapering upward
+  const segs = [
+    { y: 1.84, h: 0.64, cz: 0.62 },
+    { y: 2.36, h: 0.64, cz: 0.72 },
+    { y: 2.88, h: 0.64, cz: 0.84 },
+  ];
+  for (const seg of segs) {
+    const geo = new THREE.BoxGeometry(0.22, seg.h, seg.cz);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(0.18, seg.y, 0);
+    g.add(mesh);
+  }
+
+  const filletGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.18, 14);
+  const fillet = new THREE.Mesh(filletGeo, mat);
+  fillet.position.set(0.18, 1.52, 0);
+  g.add(fillet);
+
+  g.position.z = 9.0 * side;
+  return g;
+}
+
+// ── Runway ───────────────────────────────────────────────────────────────────
+
+function _buildRunway() {
+  const g = new THREE.Group();
+
+  // Asphalt surface
+  const aspMat = new THREE.MeshStandardMaterial({
+    color: 0x1A1D22, roughness: 0.98, metalness: 0.0,
+  });
+  const asp = new THREE.Mesh(new THREE.PlaneGeometry(400, 100), aspMat);
+  asp.rotation.x = -Math.PI / 2;
+  asp.position.y = -1.2;
+  g.add(asp);
+
+  // Runway edge lines
+  const edgeMat = new THREE.MeshBasicMaterial({ color: 0xF0F0F0 });
+  for (const z of [22, -22]) {
+    const edge = new THREE.Mesh(new THREE.PlaneGeometry(400, 0.22), edgeMat);
+    edge.rotation.x = -Math.PI / 2;
+    edge.position.set(0, -1.19, z);
+    g.add(edge);
+  }
+
+  // Center-line dashes (white, every 6 units)
+  const dashMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+  for (let i = -18; i <= 18; i++) {
+    const dash = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.28), dashMat);
+    dash.rotation.x = -Math.PI / 2;
+    dash.position.set(i * 6, -1.19, 0);
+    g.add(dash);
+  }
+
+  // Runway edge lights — small amber dots along edges
+  const lightMat = new THREE.MeshBasicMaterial({ color: 0xFFCC44 });
+  for (let i = -16; i <= 16; i += 4) {
+    for (const z of [24, -24]) {
+      const light = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), lightMat);
+      light.position.set(i * 2, -1.1, z);
+      g.add(light);
+    }
+  }
+
+  return g;
 }

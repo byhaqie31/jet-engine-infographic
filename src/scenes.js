@@ -16,11 +16,14 @@ import gsap from 'gsap';
 // The new model is taller (wing at y≈3.15) so cameras are pulled up and back
 // relative to the original generic-engine build.
 export const SCENE_CAMERAS = [
-  { position: [8,    4.5, 8],   lookAt: [1.5,  1.5, 0] }, // 1 Intake      — wide 3/4 front, shows wing mount
-  { position: [4,    1.8, 4],   lookAt: [0.8,  0.2, 0] }, // 2 Compression — dolly into compressor zone
-  { position: [0,    0.5, 3.5], lookAt: [-0.3, 0,   0] }, // 3 Combustion  — tight on chamber
-  { position: [-3,   0.8, 3],   lookAt: [-1.5, 0.2, 0] }, // 4 Turbine     — pulls back, turbine visible
-  { position: [9,    5,   9],   lookAt: [0.5,  1.5, 0] }, // 5 Thrust      — wide reveal, full assembly
+  { position: [12,  10,  50],  lookAt: [-7.7, 3,   -1.2], duration: 2.0 }, // 0 Intro       — full aircraft orbit
+  { position: [5,   3,   12],  lookAt: [0,    1.0,  0],   duration: 2.5 }, // 1 Side angle  — profile of nacelle, still GLB
+  { position: [7,   4,   9],   lookAt: [0,    0.8,  0],   duration: 1.8 }, // 2 Exterior    — engine pod, ghost aircraft, procedural engine fades in
+  { position: [10,  5.5, 10],  lookAt: [0,    1.8,  0],   duration: 1.8 }, // 3 Intake      — wide engine, intake particles
+  { position: [4,   1.8, 4],   lookAt: [0.8,  0.2,  0],   duration: 1.2 }, // 4 Compression — dolly into compressor
+  { position: [0,   0.5, 3.5], lookAt: [-0.3, 0,    0],   duration: 1.2 }, // 5 Combustion  — tight on chamber
+  { position: [-3,  0.8, 3],   lookAt: [-1.5, 0.2,  0],   duration: 1.2 }, // 6 Turbine     — pulls back
+  { position: [9,   5,   9],   lookAt: [0.5,  1.5,  0],   duration: 1.2 }, // 7 Thrust      — wide reveal, orbit ON
 ];
 
 // ─── PARTICLE SYSTEMS ─────────────────────────────────────────────────────────
@@ -145,20 +148,24 @@ export function initWheelNavigation(component) {
     const next = Math.max(0, Math.min(component.scenes.length - 1, component.currentScene + dir));
     if (next === component.currentScene) return;
     cooldown = true;
-    setTimeout(() => { cooldown = false; }, 1200); // match camera move duration
+    const ms = (SCENE_CAMERAS[next].duration ?? 1.2) * 1000 + 200;
+    setTimeout(() => { cooldown = false; }, ms);
     component.goToScene(next);
   }
 
-  // Wheel — prevent host page scroll while pointer is over the component
+  // Wheel — prevent host page scroll while pointer is over the component.
+  // Scene 0 is orbit mode; OrbitControls owns the wheel event there.
   stage.addEventListener('wheel', (e) => {
     e.preventDefault();
+    if (component.currentScene === 0) return;
     step(e.deltaY > 0 ? 1 : -1);
   }, { passive: false });
 
-  // Touch swipe
+  // Touch swipe — also deferred to OrbitControls in Scene 0
   let touchY = 0;
   stage.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; }, { passive: true });
   stage.addEventListener('touchend', (e) => {
+    if (component.currentScene === 0) return;
     const delta = touchY - e.changedTouches[0].clientY;
     if (Math.abs(delta) > 50) step(delta > 0 ? 1 : -1);
   }, { passive: true });
@@ -185,42 +192,159 @@ export function transitionScene(component, idx) {
   const sceneData = component.scenes[idx];
   const cam = SCENE_CAMERAS[idx];
   const prevIdx = component.currentScene;
-  const isLast = idx === component.scenes.length - 1;
+  const dur = cam.duration ?? 1.2;
+  const isLast = idx === component.scenes.length - 1; // Scene 6 (Thrust)
 
   // ── Camera ──────────────────────────────────────────────────────────────────
-  if (!isLast) {
-    gsap.to(component.camera.position, {
-      x: cam.position[0], y: cam.position[1], z: cam.position[2],
-      duration: 1.2, ease: 'power3.inOut',
-    });
-    // cameraTarget is the THREE.Vector3 that animate() feeds into camera.lookAt()
-    gsap.to(component.cameraTarget, {
-      x: cam.lookAt[0], y: cam.lookAt[1], z: cam.lookAt[2],
-      duration: 1.2, ease: 'power3.inOut',
-    });
+  if (idx === 0) {
+    // Return to aircraft intro — tween camera, then restore aircraft orbit
     component.controls.enabled = false;
-  } else {
-    // Final scene — move camera then hand control to OrbitControls
     gsap.to(component.camera.position, {
       x: cam.position[0], y: cam.position[1], z: cam.position[2],
-      duration: 1.2, ease: 'power3.inOut',
+      duration: dur, ease: 'power3.inOut',
       onComplete() {
-        component.controls.target.set(cam.lookAt[0], cam.lookAt[1], cam.lookAt[2]);
+        component.controls.target.set(-7.7, 3, -1.2);
+        component.controls.minDistance = 18;
+        component.controls.maxDistance = 65;
         component.controls.enabled = true;
       },
     });
     gsap.to(component.cameraTarget, {
       x: cam.lookAt[0], y: cam.lookAt[1], z: cam.lookAt[2],
-      duration: 1.2, ease: 'power3.inOut',
+      duration: dur, ease: 'power3.inOut',
+    });
+  } else if (!isLast) {
+    gsap.to(component.camera.position, {
+      x: cam.position[0], y: cam.position[1], z: cam.position[2],
+      duration: dur, ease: 'power3.inOut',
+    });
+    // cameraTarget is the THREE.Vector3 that animate() feeds into camera.lookAt()
+    gsap.to(component.cameraTarget, {
+      x: cam.lookAt[0], y: cam.lookAt[1], z: cam.lookAt[2],
+      duration: dur, ease: 'power3.inOut',
+    });
+    component.controls.enabled = false;
+  } else {
+    // Final scene — move camera then hand control to OrbitControls for engine inspection
+    gsap.to(component.camera.position, {
+      x: cam.position[0], y: cam.position[1], z: cam.position[2],
+      duration: dur, ease: 'power3.inOut',
+      onComplete() {
+        component.controls.target.set(cam.lookAt[0], cam.lookAt[1], cam.lookAt[2]);
+        component.controls.minDistance = 4;
+        component.controls.maxDistance = 12;
+        component.controls.enabled = true;
+      },
+    });
+    gsap.to(component.cameraTarget, {
+      x: cam.lookAt[0], y: cam.lookAt[1], z: cam.lookAt[2],
+      duration: dur, ease: 'power3.inOut',
     });
   }
 
-  // ── Particles ────────────────────────────────────────────────────────────────
-  if (component.intakeParticles)  component.intakeParticles.visible  = idx === 0;
-  if (component.exhaustParticles) component.exhaustParticles.visible = idx === 4;
+  // ── Aircraft / engine visibility ──────────────────────────────────────────────
+  // Scene 0: full aircraft orbit, engine hidden, sky
+  // Scene 1: side-angle nacelle shot, aircraft full opacity, engine hidden, sky
+  // Scene 2: ghost aircraft (0.25), procedural engine fades in, sky→dark
+  // Scene 3+: aircraft hidden, dark background
+  if (component.aircraftBody) {
+    if (idx === 0) {
+      // Return to intro — restore full aircraft, sky, bright lighting
+      component.engine.visible = false;
+      component.aircraftBody.visible = true;
+      component.aircraftBody.traverse(child => {
+        if (child.material) child.material.opacity = 1.0;
+      });
+      component.threeScene.background = new THREE.Color(0xB8CDD8);
+      component.threeScene.fog.color.set(0xB8CDD8);
+      component.threeScene.fog.near = 52;
+      component.threeScene.fog.far  = 140;
+      if (component._ambientLight) component._ambientLight.intensity = 1.2;
+      if (component._keyLight)     component._keyLight.intensity     = 1.8;
 
-  // ── Combustion reset when leaving Scene 3 ────────────────────────────────────
-  if (prevIdx === 2 && idx !== 2 && component.ignited) {
+    } else if (idx === 1) {
+      // Side-angle engine approach — aircraft stays full, engine hidden, sky maintained
+      component.engine.visible = false;
+      component.aircraftBody.visible = true;
+
+      if (prevIdx >= 2) {
+        // Returning from engine anatomy — restore aircraft and sky
+        component.aircraftBody.traverse(child => {
+          if (child.material) child.material.opacity = 1.0;
+        });
+        component.threeScene.background = new THREE.Color(0xB8CDD8);
+        component.threeScene.fog.color.set(0xB8CDD8);
+        component.threeScene.fog.near = 52;
+        component.threeScene.fog.far  = 140;
+        if (component._ambientLight) component._ambientLight.intensity = 1.2;
+        if (component._keyLight)     component._keyLight.intensity     = 1.8;
+      }
+      // If coming from Scene 0, aircraft is already at full opacity — nothing to do
+
+    } else if (idx === 2) {
+      // Engine exterior — ghost aircraft, reveal procedural engine, begin darkening
+      component.engine.visible = true;
+      component.aircraftBody.visible = true;
+
+      if (prevIdx <= 1) {
+        // Coming from aircraft scenes: fade sky and ghost aircraft
+        gsap.to(component.threeScene.fog, { near: 28, far: 85, duration: dur * 0.8 });
+        if (component._ambientLight) gsap.to(component._ambientLight, { intensity: 0.8, duration: dur });
+        if (component._keyLight)     gsap.to(component._keyLight,     { intensity: 1.4, duration: dur });
+        const obj = { t: 1 };
+        gsap.to(obj, {
+          t: 0.25, duration: dur * 0.7, ease: 'power2.inOut',
+          onUpdate() {
+            component.aircraftBody.traverse(child => {
+              if (child.material) child.material.opacity = obj.t;
+            });
+          },
+        });
+      } else {
+        // Returning from Scene 3+
+        component.aircraftBody.traverse(child => {
+          if (child.material) child.material.opacity = 0.25;
+        });
+        component.threeScene.fog.near = 22;
+        component.threeScene.fog.far  = 70;
+        if (component._ambientLight) component._ambientLight.intensity = 0.8;
+        if (component._keyLight)     component._keyLight.intensity     = 1.4;
+      }
+
+    } else if (prevIdx <= 2) {
+      // Entering Scene 3+ from any aircraft/exterior scene — hide aircraft, go dark
+      component.engine.visible = true;
+      component.threeScene.background = null;
+      component.threeScene.fog.color.set(0x0a0b0f);
+      component.threeScene.fog.near = 18;
+      component.threeScene.fog.far  = 55;
+      if (component._ambientLight) component._ambientLight.intensity = 0.6;
+      if (component._keyLight)     component._keyLight.intensity     = 1.2;
+
+      if (prevIdx === 2) {
+        // Fade out ghost aircraft
+        const obj = { t: 0.25 };
+        gsap.to(obj, {
+          t: 0, duration: 0.6, ease: 'power2.in',
+          onUpdate() {
+            component.aircraftBody.traverse(child => {
+              if (child.material) child.material.opacity = obj.t;
+            });
+          },
+          onComplete() { component.aircraftBody.visible = false; },
+        });
+      } else {
+        component.aircraftBody.visible = false;
+      }
+    }
+  }
+
+  // ── Particles ────────────────────────────────────────────────────────────────
+  if (component.intakeParticles)  component.intakeParticles.visible  = idx === 3;
+  if (component.exhaustParticles) component.exhaustParticles.visible = idx === 7;
+
+  // ── Combustion reset when leaving Scene 5 ────────────────────────────────────
+  if (prevIdx === 5 && idx !== 5 && component.ignited) {
     component.ignited = false;
     if (component.combustion) {
       gsap.killTweensOf(component.combustion.material);
@@ -235,7 +359,7 @@ export function transitionScene(component, idx) {
   // ── Ignite button visibility ──────────────────────────────────────────────────
   const igniteBtn = component.shadowRoot.querySelector('[data-ignite]');
   if (igniteBtn) {
-    if (idx === 2 && !component.ignited) {
+    if (idx === 5 && !component.ignited) {
       igniteBtn.style.display = 'flex';
       gsap.fromTo(igniteBtn, { opacity: 0 }, { opacity: 1, duration: 0.4, delay: 1.0 });
       igniteBtn.style.pointerEvents = 'auto';
@@ -244,6 +368,32 @@ export function transitionScene(component, idx) {
       gsap.to(igniteBtn, {
         opacity: 0, duration: 0.2,
         onComplete() { igniteBtn.style.display = 'none'; },
+      });
+    }
+  }
+
+  // ── CTA button (visible in Scenes 0 and 1) ───────────────────────────────────
+  const exploreBtn = component.shadowRoot.querySelector('[data-explore]');
+  if (idx === 0) {
+    if (exploreBtn) {
+      exploreBtn.innerHTML = '&#x2192;&nbsp;&nbsp;VIEW ENGINE';
+      exploreBtn.style.display = 'flex';
+      gsap.to(exploreBtn, { opacity: 1, duration: 0.6, delay: 0.8 });
+      setTimeout(() => exploreBtn?.classList.add('is-pulsing'), 1400);
+    }
+  } else if (idx === 1) {
+    if (exploreBtn) {
+      exploreBtn.innerHTML = '&#x2193;&nbsp;&nbsp;EXPLORE ENGINE';
+      exploreBtn.style.display = 'flex';
+      gsap.to(exploreBtn, { opacity: 1, duration: 0.6, delay: 0.6 });
+      setTimeout(() => exploreBtn?.classList.add('is-pulsing'), 1200);
+    }
+  } else if (prevIdx <= 1) {
+    if (exploreBtn) {
+      exploreBtn.classList.remove('is-pulsing');
+      gsap.to(exploreBtn, {
+        opacity: 0, duration: 0.3,
+        onComplete() { exploreBtn.style.display = 'none'; },
       });
     }
   }
