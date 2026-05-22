@@ -95,6 +95,15 @@ combustion — cool air entering, heat building, fire releasing.
 - **Headlines stay warm white** (`--color-ink-primary`) across all scenes. Never tint headline text with the scene accent — it cheapens the typography.
 - **Data values stay warm white.** Labels stay muted gray. Never tint either with accent colors.
 
+### Sky rendering (Acts I & III)
+
+The aircraft/finale scenes use a Three.js atmospheric **Sky shader** for the blue
+environment. Because ACES tone mapping desaturates very bright HDR values toward white,
+the sky reads blue only when (a) the Sky uses a *modest* `rayleigh` (≈2 — cranking it up
+just brightens it into the washed-out range) and (b) the renderer runs at **reduced
+tone-mapping exposure (~0.55) on the sky scenes** (full `1.0` for the dark engine anatomy).
+This per-scene exposure is the real "how blue" lever — see PROJECT-SPEC §8.
+
 ---
 
 ## 3. Typography
@@ -331,6 +340,13 @@ A single shared border wraps both panels so they stay pixel-aligned.
   border-color: var(--color-ink-muted);
 }
 ```
+
+**On-canvas CTA pairing (Scene 0).** The two entry CTAs use contrast to signal hierarchy:
+a **dark** "VIEW ENGINE" (the considered walkthrough) sits beside a **solid white**
+"WATCH TAKEOFF" shortcut. They share the mono label treatment and the 2px architectural
+radius; only fill differs. On mobile both clear the 44px touch target and wrap if the row
+is too narrow. The mobile chapter carousel uses **numbered indicators** (1·2·3, mono) with
+an active underline rather than dots — consistent with the schematic, data-led tone.
 
 ### Tooltips
 

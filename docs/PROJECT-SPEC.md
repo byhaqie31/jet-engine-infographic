@@ -35,7 +35,8 @@ The experience runs across **9 scenes** in three acts:
 8. **Thrust** — 97,000 lbf per engine
 
 **Act III — Departure (payoff)**
-9. **Departure** — the aircraft flies through an atmospheric sky as the camera orbits
+9. **Departure** — the aircraft takes off and flies through an atmospheric sky, then
+   seamlessly loops back to the intro
 
 Aesthetic direction: **editorial × cinematic × premium engineering documentary** —
 Apple product page × Dassault Systèmes industrial storytelling × aviation magazine
@@ -51,7 +52,7 @@ spread.
 | 2 | Built with HTML, CSS, JavaScript | Vanilla ES modules. No Nuxt/React/Vue. |
 | 3 | Animation libraries allowed | GSAP + ScrollTrigger, with Lenis for smooth scroll |
 | 4 | Web Component implementation | Custom Element + full Shadow DOM |
-| 5 | Minimum 3 types of interactive elements | 7+ delivered — see §7 |
+| 5 | Minimum 3 types of interactive elements | 12+ delivered — see §7 |
 | 6 | Responsive design — desktop + mobile | Two-panel responsive layout with mobile media queries |
 | 7 | Smooth scrolling/transitions | Lenis smooth scroll + GSAP camera/text choreography |
 | 8 | Maintainable, well-documented code | Modular `src/`, "why" comments throughout |
@@ -114,8 +115,7 @@ HTML5 + Vanilla JS (ES Modules)
 │   └── host.css            ← Host page styles only (incl. editorial sections)
 ├── /docs
 │   ├── PROJECT-SPEC.md           ← this file
-│   ├── DESIGN-SYSTEM.md          ← visual source of truth
-│   └── EDITORIAL-SECTIONS-SPEC.md ← spec for the 3 host-page editorial sections
+│   └── DESIGN-SYSTEM.md          ← visual source of truth
 ├── vite.config.js
 ├── package.json
 └── README.md
@@ -153,8 +153,12 @@ camera presets in `SCENE_CAMERAS` in [src/scenes.js](../src/scenes.js).
 - **Camera:** Wide runway orbit of the full aircraft (OrbitControls enabled, wheel-zoom on)
 - **Headline:** *"Explore the aircraft."*
 - **Stats:** `MAX RANGE: 16,100 km` · `PASSENGERS: 369`
-- **Interaction:** Drag to orbit, hover for aircraft-zone tooltips, **VIEW ENGINE** CTA
-- **Environment:** Sky-blue background + fog, bright sun lighting
+- **Interaction:** Drag to orbit, hover for aircraft-zone tooltips, two CTAs — primary
+  dark **VIEW ENGINE** (steps into the walkthrough) and a secondary white **WATCH TAKEOFF**
+  that jumps straight to the finale (Scene 8).
+- **Environment:** Atmospheric Sky shader + drifting clouds (shared with the finale)
+- **Top bar:** a replay (⟲) control sits beside the progress bar on every scene — jumps
+  straight back to Scene 0 from anywhere.
 
 **Scene 1 — The engine** (`engine-approach`)
 - **Camera:** Front-side approach, the starboard nacelle framed under the wing
@@ -208,17 +212,23 @@ camera presets in `SCENE_CAMERAS` in [src/scenes.js](../src/scenes.js).
 - **Headline:** *"And it flies."*
 - **Stats:** `CRUISE SPEED: 945 km/h` · `CRUISE ALTITUDE: 13,100 m`
 - **Environment:** Three.js Sky shader + drifting cloud sprites; the aircraft bobs and
-  banks while the cloud field streams past. **REPLAY** returns to Scene 0.
+  banks while the cloud field streams past.
+- **Seamless loop (no REPLAY button):** once the aircraft settles into cruise it holds
+  briefly (`CRUISE_HOLD`), then **auto-returns to Scene 0**. Because Scene 0 and the finale
+  share the same sky, the plane stays at altitude and the orbit continues without a cut —
+  Scene 0's CTAs simply fade back in. The cruise pitch is composed via quaternion
+  (`level · pitch · bank`) so it never snaps to level; OrbitControls is re-enabled through
+  `enableOrbitClean()` so no residual orbit momentum unwinds as a drift.
 
 ---
 
-## 7. Interactive Elements (10+ — far exceeds the minimum of 3)
+## 7. Interactive Elements (12+ — far exceeds the minimum of 3)
 
 | # | Element | Where | Implementation |
 |---|---|---|---|
 | 1 | Cinematic scroll hero | Host page | GSAP ScrollTrigger pins the hero; a flyby plane enters, expands, and dissolves into the A350 title + blueprint, scrubbed by Lenis |
 | 2 | Smooth scrolling | Host page | Lenis driven by the GSAP ticker, synced to ScrollTrigger |
-| 3 | Sticky chapter scroll | Host page (Section B) | A pinned media frame cross-fades through 3 chapter images as the right-hand text column scrolls past (3DS-style); on mobile it becomes a horizontal swipe carousel with progress dots. See EDITORIAL-SECTIONS-SPEC.md |
+| 3 | Sticky chapter scroll | Host page (Section B) | A pinned media frame cross-fades through 3 chapter images as the right-hand text column scrolls past (3DS-style); on mobile it becomes a horizontal swipe carousel with numbered indicators (rationale below) |
 | 4 | Animated stat strip | Host page (Section A) | Four mono stats count up from 0 once, when the strip enters the viewport |
 | 5 | Pull-quote parallax | Host page (Section C) | Full-bleed quote whose background image scrubs slower than the text on scroll, with a fade-up reveal |
 | 6 | Drag-to-orbit | Scenes 0 & 8 | OrbitControls with damping; wheel-zoom toggled per scene via `data-lenis-prevent` |
@@ -226,6 +236,27 @@ camera presets in `SCENE_CAMERAS` in [src/scenes.js](../src/scenes.js).
 | 8 | Scene navigation | All scenes | CTA buttons (Acts I/III) + Prev/Next stage nav (Act II), each driving a GSAP camera + content transition |
 | 9 | Click-to-ignite | Scene 5 | Button triggers the combustion timeline + bloom ramp + camera shake/pull-back + exhaust puff |
 | 10 | Animated data counters | Every scene | Numbers count up from 0 on scene activation (GSAP, tabular-nums) |
+| 11 | Replay control | Top bar, all scenes | A ⟲ button beside the progress bar jumps straight back to Scene 0 |
+| 12 | Takeoff shortcut | Scene 0 | A secondary white CTA skips directly to the finale takeoff (Scene 8) |
+
+### Host editorial sections — rationale
+
+The three host-page sections (**A** stat strip · **B** sticky chapters · **C** pull quote)
+frame the embedded component in a richer editorial experience, modelled on Dassault
+Systèmes' industrial-equipment page (<https://www.3ds.com/industries/industrial-equipment>).
+They were chosen for ROI:
+
+- **Stat strip (A)** — a quick win; the figures count up on entry to build anticipation
+  right before the 3D piece.
+- **Sticky chapters (B)** — the 3DS *signature* scroll move (pinned media cross-fading
+  through chapters); the most ambitious and highest-impact section, and the one a reviewer
+  subconsciously recognises. Degrades to a swipe carousel on mobile (§10).
+- **Pull quote (C)** — an emotional close before the footer; full-bleed dark with a subtle
+  background parallax. Editorial publications use this beat because it works.
+
+Together they turn the page from "a Web Component demo" into "a complete editorial
+experience built around a Web Component." Build details live in the code
+(`index.html`, `host.css`, `host-animations.js`); behaviour is summarised in §7 and §10.
 
 ---
 
@@ -253,6 +284,13 @@ Hand-built so each part is individually animatable and tooltip-targetable:
 **Lighting:** sun key light, electric-blue rim, combustion-orange fill, sky ambient.
 Ambient/key intensity and fog are re-tuned per act (bright sky in Acts I/III, dark in Act II).
 ACES filmic tone mapping on the renderer.
+
+**Tone-mapping exposure (per scene).** ACES desaturates very bright HDR values toward
+white, which washed out the atmospheric Sky shader. Exposure is now driven per scene
+(`transitionScene` tweens `renderer.toneMappingExposure`): the sky scenes (0 + finale)
+sit at ~0.55 so the blue reads, the engine anatomy stays at 1.0. The Sky uses a *modest*
+`rayleigh` (≈2) for the same reason — cranking it up only brightens the sky into the
+desaturating range.
 
 **Post-processing — selective bloom.** The scene renders through an `EffectComposer`
 (`RenderPass` → `UnrealBloomPass` → `OutputPass`) with a high threshold (~0.72) so only
@@ -293,8 +331,14 @@ than pinned to fixed pixels:
 | Breakpoint | Behavior |
 |---|---|
 | Desktop (≥769px) | Component capped at 1440px wide; stage is 16:9, max-height 720px; all features active |
-| Mobile (≤768px) | Stage switches to a taller portrait crop (~375:560, max-height 560px); tighter padding; smaller type; data readouts compressed; **on-canvas controls (ignite / explore / stage-nav) clear the 44px touch-target minimum**; OrbitControls handle touch (drag + pinch) |
+| Mobile (≤768px) | Stage switches to a taller portrait crop (~375:560, max-height 560px); tighter padding; smaller type; data readouts compressed; **on-canvas controls (ignite / explore / stage-nav / replay) clear the 44px touch-target minimum**; OrbitControls handle touch (drag + pinch) |
 | Narrow phone (≤420px) | Data row + stage-nav padding tighten further so nothing crowds or overflows |
+
+**Mobile engine framing.** The anatomy scenes (3–7) are framed for a wide 16:9 stage; on
+a narrow portrait phone the long engine spills off the sides. `mobileFramedPosition()`
+(scenes.js) dollies the camera straight back along its view axis until the full engine
+fits the narrower horizontal field — the per-scene `lookAt` is untouched, so the focused
+stage stays centred. Re-applied on resize across the breakpoint (`reframeForResize()`).
 
 **Host page** mirrors this: the hero uses `100dvh` (no URL-bar crop), its title scales
 down and the secondary flight-strip metrics collapse so the line never overflows; the
@@ -306,6 +350,11 @@ image-per-card, numbered progress indicators), and the pull quote reclaims its i
 
 Pixel ratio is capped at 2 for performance. `prefers-reduced-motion` collapses
 animation/transition durations.
+
+**Scroll on refresh.** The host page forces `history.scrollRestoration = 'manual'` and
+resets to the top on (re)load, then `ScrollTrigger.refresh()`. The hero is a pinned
+ScrollTrigger timeline, so restoring a mid-scroll position while assets are still loading
+would leave the pin/animation in a broken state — every load starts cleanly from the hero.
 
 ---
 
@@ -325,14 +374,20 @@ animation/transition durations.
 - [x] Particle systems (intake stream, exhaust plume + ignition puff)
 - [x] **Selective bloom** post-processing (EffectComposer + UnrealBloomPass, per-scene strength)
 - [x] OrbitControls + wheel-zoom ownership per scene (Lenis-aware)
-- [x] **Departure finale** — scripted runway takeoff roll → lift-off → Sky shader + drifting clouds + flight bob/bank
+- [x] **Departure finale** — scripted runway takeoff roll → lift-off → cruise, with a
+  **seamless auto-loop back to Scene 0** (shared sky, plane held at altitude, no REPLAY button)
+- [x] **Scene 0 CTAs** — primary VIEW ENGINE + secondary white WATCH TAKEOFF shortcut; top-bar ⟲ replay on every scene
 - [x] **Host editorial sections** — sticky chapter scroll (B), animated stat strip (A), pull-quote parallax (C)
 - [x] **Favicons + web manifest** (PWA install metadata in `public/favicon/`)
 - [x] Idle motion (fan + turbine rotation, engine sway)
 - [x] Mobile media queries + reduced-motion handling
 - [x] **Mobile responsiveness pass** — ≥44px touch targets on all on-canvas controls,
   flight-strip collapse + hero type scaling (no horizontal overflow), readable body-text
-  gutters, `100dvh` hero, tightened editorial-section rhythm, narrow-phone (≤420px) refinements
+  gutters, `100dvh` hero, hero A350 reveal restack, narrow-phone (≤420px) refinements
+- [x] **Mobile sticky-chapter carousel** — horizontal scroll-snap, one image per card, numbered indicators
+- [x] **Mobile engine framing** — anatomy scenes (3–7) dolly back to fit the full engine on a portrait stage
+- [x] **Per-scene tone-mapping exposure** — sky scenes dimmed so the atmospheric blue reads
+- [x] **Scroll-to-top on refresh** (manual scroll restoration; pinned hero always starts clean)
 
 ### 🔲 Remaining before submission
 - [ ] Cross-browser pass (Chrome, Safari, Firefox) + on-device check at 375×677
@@ -343,9 +398,11 @@ animation/transition durations.
 ## 12. Evaluation Criteria (from brief)
 
 1. **Visual design and creativity** → editorial aesthetic, real GLB airframe + primitives
-   engine, cool→hot color narrative, cinematic hero + sky finale
-2. **Interactivity and user experience** → 7+ interaction types, smooth choreography
-3. **Responsiveness across devices** → fluid desktop + mobile layouts
+   engine, cool→hot color narrative, cinematic hero, atmospheric blue-sky finale + selective bloom
+2. **Interactivity and user experience** → 12+ interaction types, smooth choreography, a
+   seamless takeoff→Scene 0 loop, replay + takeoff shortcuts
+3. **Responsiveness across devices** → fluid desktop + mobile layouts, 44px touch targets,
+   mobile chapter carousel, mobile engine framing, `100dvh` hero
 4. **Code quality, organization, and documentation** → modular `src/`, "why" comments,
    docs + README
 
@@ -369,6 +426,13 @@ animation/transition durations.
   post-processing entirely; that was relaxed to a *single* selective `UnrealBloomPass`
   (high threshold, low base strength) because it makes the combustion and thrust scenes
   read as genuinely hot without tipping into a glowy/neon look. No other shader passes.
+- **Seamless finale loop over a REPLAY button** — the takeoff auto-returns to Scene 0 at
+  cruise instead of parking with a manual replay; the shared sky keeps it cut-free and
+  re-presents the entry CTAs, so the piece reads as a continuous loop.
+- **Per-scene exposure for the sky** — rather than fighting ACES desaturation with extreme
+  Sky params, the sky scenes simply run at lower tone-mapping exposure so the blue reads.
+- **Always start at the hero on refresh** — `scrollRestoration: 'manual'`; restoring a
+  mid-scroll position breaks the pinned hero timeline.
 - **Scope discipline:** no sound, no engine comparisons, no further post-processing.
 
 ---
@@ -380,4 +444,4 @@ Lumpur. Primary stack: Vue/Nuxt/Tailwind/TypeScript in fintech. Choosing vanilla
 Components here is an intentional architectural decision to match the brief's
 embeddability requirement.
 
-Personal brand: axelnova.tech
+Personal brand: axelnovaventures.com

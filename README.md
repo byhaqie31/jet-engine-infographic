@@ -27,7 +27,7 @@ An editorial-style narrative across **nine scenes in three acts**:
 
 **Act III — Departure (payoff)**
 9. **Departure** — the aircraft rolls down the runway, lifts off, and cruises through
-   an atmospheric sky as the camera orbits
+   an atmospheric sky, then **seamlessly loops back to the intro** (no manual replay)
 
 The interactive asset is a custom HTML element (`<jet-engine-infographic>`) so it can be
 dropped into any host page regardless of framework — Nuxt, WordPress, plain HTML, etc.
@@ -92,7 +92,7 @@ Open <http://localhost:5173> in your browser.
 │   ├── sky.js              ← Departure finale: Sky shader + drifting clouds
 │   ├── host-animations.js  ← Lenis + GSAP hero timeline + editorial ScrollTriggers
 │   ├── fonts.css · host.css
-├── /docs                   ← PROJECT-SPEC · DESIGN-SYSTEM · EDITORIAL-SECTIONS-SPEC
+├── /docs                   ← PROJECT-SPEC · DESIGN-SYSTEM
 ├── vite.config.js
 ├── package.json
 └── README.md
@@ -121,19 +121,24 @@ That's it. No framework setup, no build step required on the host side.
 - [x] Loaded A350-1000 GLB (DRACO) with a full procedural fallback
 - [x] Trent XWB-97 engine built from Three.js primitives (every part individually animatable)
 - [x] Cinematic three-point lighting + ACES tone mapping + selective bloom
+- [x] Atmospheric blue Sky shader + drifting clouds, with per-scene tone-mapping exposure
 - [x] Idle motion (continuous fan + turbine rotation, subtle engine sway)
 - [x] 9-scene choreography with GSAP camera + content transitions
 - [x] Hover tooltips on aircraft zones and engine parts (raycasting)
 - [x] Click-to-ignite combustion sequence (flash, bloom ramp, camera shake/pull-back)
 - [x] Drag-to-orbit exploration (Scenes 0 & 8) with Lenis-aware wheel-zoom ownership
 - [x] Animated data counters (count up from 0 per scene)
-- [x] Departure finale — runway takeoff roll → lift-off → Sky shader + drifting clouds
+- [x] Departure finale — runway takeoff → cruise → **seamless auto-loop back to Scene 0**
+- [x] Scene 0 CTAs (VIEW ENGINE + WATCH TAKEOFF shortcut) and a top-bar ⟲ replay control
 - [x] Host editorial sections — sticky chapter scroll, animated stat strip, pull-quote parallax
-- [x] Cinematic scroll hero (plane flyby → A350 title → blueprint reveal)
+- [x] Cinematic scroll hero (plane flyby → A350 title → blueprint reveal); always starts at the top on refresh
 - [x] Encapsulated in Shadow DOM
-- [x] Responsive layout + `prefers-reduced-motion` handling (mobile tuning in progress)
+- [x] Responsive layout + `prefers-reduced-motion` handling — 44px touch targets, mobile
+  chapter carousel (numbered indicators), portrait engine framing, hero reveal restack
 
 ### Known limitations
+- Hover tooltips are pointer-only — touch devices have no hover, so engine-part tooltips
+  don't appear on mobile (an accepted trade-off; all primary actions are buttons).
 - DRACO decoder loads from the Google CDN (can be vendored to `public/draco/` for offline use).
 - Targets evergreen browsers (Chrome, Safari, Firefox); no IE/legacy support.
 
