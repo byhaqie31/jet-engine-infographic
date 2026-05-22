@@ -39,6 +39,71 @@ export const SCENE_CAMERAS = [
   { position: [16,  4.5, 30],  lookAt: [-6,   2.4, -1.2], duration: 2.6 }, // 8 Departure   — hero sky shot, auto-orbits the flying aircraft
 ];
 
+// ─── MOBILE FRAMING ───────────────────────────────────────────────────────────
+// The anatomy scenes (3–7) are framed for a wide 16:9 desktop stage. On a narrow
+// portrait phone the long engine spills past the left/right edges, so the user
+// can't see the whole engine. For those scenes we dolly the camera straight back
+// along its view axis until the full engine width fits the (narrower) horizontal
+// field of view. The per-scene lookAt is untouched, so the focused stage stays
+// centred with the rest of the engine visible around it.
+
+// World units the mobile frame fits to. Smaller = the engine fills more of the
+// stage. Tuned so the engine reads at a good size on a phone (a touch tighter
+// than the absolute full width, so it isn't tiny); raise it to show more margin.
+const FULL_ENGINE_WIDTH = 7;
+
+/**
+ * Returns a pulled-back {x,y,z} for an anatomy scene when the stage is narrower
+ * than 16:9, or null when no adjustment is needed (wide/desktop stage, non-anatomy
+ * scene, or the scene is already wide enough).
+ */
+function mobileFramedPosition(component, idx, cam) {
+  if (idx < 3 || idx > 7) return null;
+  const host = component.shadowRoot?.querySelector('.canvas-host');
+  if (!host) return null;
+  const { width, height } = host.getBoundingClientRect();
+  if (!width || !height) return null;
+
+  const aspect = width / height;
+  if (aspect >= 16 / 9) return null;                 // already wide enough
+
+  // Distance at which FULL_ENGINE_WIDTH fits the current horizontal FOV.
+  const vFov = THREE.MathUtils.degToRad(component.camera.fov);
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+  const neededDist = (FULL_ENGINE_WIDTH / 2) / Math.tan(hFov / 2);
+
+  const [lx, ly, lz] = cam.lookAt;
+  const dx = cam.position[0] - lx;
+  const dy = cam.position[1] - ly;
+  const dz = cam.position[2] - lz;
+  const baseDist = Math.hypot(dx, dy, dz);
+  if (baseDist === 0 || neededDist <= baseDist) return null;  // scene already wide enough
+
+  const k = neededDist / baseDist;                   // dolly straight back along view axis
+  return { x: lx + dx * k, y: ly + dy * k, z: lz + dz * k };
+}
+
+/** Camera position for a scene, mobile-framed when applicable. */
+function framedCameraPosition(component, idx, cam) {
+  return (
+    mobileFramedPosition(component, idx, cam) ||
+    { x: cam.position[0], y: cam.position[1], z: cam.position[2] }
+  );
+}
+
+/**
+ * Re-apply the mobile framing for the current static anatomy scene after a
+ * resize that crosses the desktop/mobile breakpoint (the stage aspect changes).
+ * No-op while a camera transition owns the position, or outside scenes 3–7.
+ */
+export function reframeForResize(component) {
+  const idx = component.currentScene;
+  if (idx < 3 || idx > 7) return;
+  if (gsap.isTweening(component.camera.position)) return;
+  const p = framedCameraPosition(component, idx, SCENE_CAMERAS[idx]);
+  component.camera.position.set(p.x, p.y, p.z);
+}
+
 // ─── PARTICLE SYSTEMS ─────────────────────────────────────────────────────────
 
 function _resetIntake(pos, i) {
@@ -161,6 +226,10 @@ function setAircraftPose(component, mode, dur) {
   if (!body || !base || !aligned) return;
 
   const t = mode === 'aligned' ? aligned : base;
+  // If a snap is requested (dur 0) but the plane is currently airborne — e.g.
+  // proceeding into an aircraft scene from the cruise-loop Scene 0 — tween it down
+  // instead so it descends smoothly rather than popping to the ground.
+  if (dur === 0 && Math.abs(body.position.y - t.pos.y) > 1) dur = 1.2;
   if (dur > 0) {
     gsap.to(body.position, { x: t.pos.x, y: t.pos.y, z: t.pos.z, duration: dur, ease: 'power3.inOut' });
     gsap.to(body.scale,    { x: t.scale.x, y: t.scale.y, z: t.scale.z, duration: dur, ease: 'power3.inOut' });
@@ -199,8 +268,10 @@ function revealEngine(component, dur) {
 // Aircraft visual centre at the base pose (matches the finale orbit lookAt). The
 // takeoff camera + orbit work in deltas from this known-good point.
 const _TAKEOFF_CENTER = new THREE.Vector3(-6, 2.4, -1.2);
-const _pitchAxis = new THREE.Vector3(1, 0, 0);
+const _pitchAxis = new THREE.Vector3(1, 0, 0);   // local wing/lateral axis → pitch
+const _bankAxis  = new THREE.Vector3(0, 0, 1);   // local nose/longitudinal axis → roll (bank)
 const _pitchQuat = new THREE.Quaternion();
+const _bankQuat  = new THREE.Quaternion();
 
 // Chase-cam scratch + framing offsets (camera position relative to the jet centre).
 const _center  = new THREE.Vector3();
@@ -222,14 +293,30 @@ function setAircraftPitch(component, noseUpRad) {
   body.quaternion.copy(level).multiply(_pitchQuat);
 }
 
-/** Gentle cruise loop — the aircraft bobs and banks while the clouds stream past. */
+/** Gentle cruise loop — the aircraft keeps its slight climb-out nose-up attitude and
+ *  softly bobs + banks while the clouds stream past. Pitch and bank are composed onto
+ *  the baked level (90° yaw) quaternion — the same way setAircraftPitch works — so the
+ *  attitude carries through from the climb without snapping back to the level axis, and
+ *  the bank can't get tangled in the Euler representation. */
 function startCruiseBob(component) {
-  const body = component.aircraftBody;
+  const body  = component.aircraftBody;
+  const level = component._aircraftLevelQuat;
+  if (!body || !level) return;
   const baseY = body.position.y;
+
+  // Start exactly where the climb-out left off (slight nose-up, no bank) so the
+  // hand-off is seamless, then ease into a gentle oscillation.
+  const att = { pitch: 0.05, bank: 0 };
+  const applyAttitude = () => {
+    _pitchQuat.setFromAxisAngle(_pitchAxis, -att.pitch);
+    _bankQuat.setFromAxisAngle(_bankAxis, att.bank);
+    body.quaternion.copy(level).multiply(_pitchQuat).multiply(_bankQuat);
+  };
+
   if (component._flyTween) component._flyTween.kill();
   component._flyTween = gsap.timeline({ repeat: -1, yoyo: true })
-    .fromTo(body.position, { y: baseY - 0.3 }, { y: baseY + 0.5, duration: 3.6, ease: 'sine.inOut' }, 0)
-    .fromTo(body.rotation, { z: -0.03 },       { z: 0.05,        duration: 4.2, ease: 'sine.inOut' }, 0);
+    .to(body.position, { y: baseY + 0.5, duration: 3.6, ease: 'sine.inOut' }, 0)
+    .to(att, { pitch: 0.085, bank: 0.05, duration: 4.2, ease: 'sine.inOut', onUpdate: applyAttitude }, 0);
 }
 
 /** Set the runway's overall opacity (it's a group of several meshes/materials),
@@ -245,6 +332,20 @@ function setRunwayOpacity(component, o) {
 }
 
 /**
+ * Re-enable OrbitControls without the residual momentum (sphericalDelta / dolly
+ * scale) that froze while it was disabled — otherwise that leftover unwinds as a
+ * visible drift the moment control is handed back. Running one update() with
+ * damping off consumes and zeroes the residual in a single frame.
+ */
+function enableOrbitClean(component) {
+  const c = component.controls;
+  c.enableDamping = false;
+  c.enabled = true;
+  c.update();
+  c.enableDamping = true;
+}
+
+/**
  * Scene 8 — the aircraft rolls down the runway, rotates nose-up, lifts off and
  * climbs into the sky, then settles into the gentle cruise orbit. The camera and
  * orbit target pan with the jet (deltas from _TAKEOFF_CENTER) so it stays framed.
@@ -257,11 +358,16 @@ function playTakeoff(component) {
 
   const DX = 14, LIFT = 6, BACK = 22;   // forward distance · climb height · how far back it starts
   const ROLL_DUR = 6.6;                 // long ground roll — "gathering thrust" before rotation
+  const CRUISE_HOLD = 2.6;              // seconds to dwell at cruise before looping back to Scene 0
   const groundY = base.pos.y;
   const centerOffset = _TAKEOFF_CENTER.clone().sub(base.pos); // jet centre = body.position + this
 
-  // Start: parked at the back of the runway, level.
-  setAircraftPose(component, 'base', 0);
+  // Start: parked at the back of the runway, level. Set directly (not via
+  // setAircraftPose) so a takeoff launched from an airborne cruise-loop snaps to
+  // the start instantly rather than tweening — the camera cut to the chase cam
+  // masks it.
+  body.position.copy(base.pos);
+  body.scale.copy(base.scale);
   body.position.x = base.pos.x - BACK;
   setAircraftPitch(component, 0);
   if (component.runway) {
@@ -289,15 +395,24 @@ function playTakeoff(component) {
       component.cameraTarget.copy(_center);
     },
     onComplete() {
-      setAircraftPitch(component, 0);
+      // Don't zero the pitch here — that caused the nose to snap level the instant
+      // cruise began. startCruiseBob takes over from the settled climb-out attitude.
       if (component.runway) component.runway.visible = false;
       _center.copy(body.position).add(centerOffset);
       component.controls.target.copy(_center);
       component.controls.minDistance = 22;
       component.controls.maxDistance = 90;
-      component.controls.enabled = true;
+      enableOrbitClean(component);          // no residual-momentum drift on handoff
       component.controls.autoRotate = true;
       startCruiseBob(component);
+
+      // Seamless loop — hold the cruise briefly so the climb pays off, then fly the
+      // camera back to Scene 0. Both scenes share the sky, so there's no jarring cut;
+      // the Scene 0 transition restores the runway aircraft and its CTA buttons.
+      component._cruiseReturnCall = gsap.delayedCall(CRUISE_HOLD, () => {
+        component._cruiseReturnCall = null;
+        if (component.currentScene === 8) component.goToScene(0);
+      });
     },
   })
     .to(body.position, { x: base.pos.x - 2, duration: ROLL_DUR, ease: 'power1.in' }, 0)        // roll — accelerate down the runway
@@ -335,6 +450,7 @@ export function transitionScene(component, idx) {
     component._finaleActive = false;
     component.controls.autoRotate = false;
     if (component._flyTween) { component._flyTween.kill(); component._flyTween = null; }
+    if (component._cruiseReturnCall) { component._cruiseReturnCall.kill(); component._cruiseReturnCall = null; }
     setAircraftPitch(component, 0); // undo any takeoff/cruise tilt
   }
 
@@ -368,28 +484,42 @@ export function transitionScene(component, idx) {
     component.controls.enabled = false;
     component.controls.autoRotate = false;
   } else if (idx === 0) {
-    // Return to aircraft intro — tween camera, then restore aircraft orbit
-    component.controls.enabled = false;
-    gsap.to(component.camera.position, {
-      x: cam.position[0], y: cam.position[1], z: cam.position[2],
-      duration: dur, ease: 'power3.inOut',
-      onComplete() {
-        component.controls.target.set(-7.7, 3, -1.2);
-        component.controls.minDistance = 18;
-        component.controls.maxDistance = 65;
-        component.controls.enabled = true;
-        component.controls.autoRotate = true; // resume the gentle Scene 0 spin
-      },
-    });
-    gsap.to(component.cameraTarget, {
-      x: cam.lookAt[0], y: cam.lookAt[1], z: cam.lookAt[2],
-      duration: dur, ease: 'power3.inOut',
-    });
+    if (prevIdx === 8) {
+      // Seamless loop from the finale — the plane is already orbiting at cruise
+      // altitude. Keep that exact view: hand control back, no camera tween and no
+      // pose reset (below), so it stays at altitude instead of snapping to the
+      // runway intro shot. controls.target is already centred on the jet.
+      component.controls.minDistance = 18;
+      component.controls.maxDistance = 90;
+      component.controls.enabled = true;
+      component.controls.autoRotate = true;
+    } else {
+      // Return to aircraft intro — tween camera, then restore aircraft orbit
+      component.controls.enabled = false;
+      gsap.to(component.camera.position, {
+        x: cam.position[0], y: cam.position[1], z: cam.position[2],
+        duration: dur, ease: 'power3.inOut',
+        onComplete() {
+          component.controls.target.set(-7.7, 3, -1.2);
+          component.controls.minDistance = 18;
+          component.controls.maxDistance = 65;
+          enableOrbitClean(component);          // no residual-momentum drift on handoff
+          component.controls.autoRotate = true; // resume the gentle Scene 0 spin
+        },
+      });
+      gsap.to(component.cameraTarget, {
+        x: cam.lookAt[0], y: cam.lookAt[1], z: cam.lookAt[2],
+        duration: dur, ease: 'power3.inOut',
+      });
+    }
   } else {
     // Scenes 1–7 — scripted camera, OrbitControls off.
     // cameraTarget is the THREE.Vector3 that animate() feeds into camera.lookAt().
+    // On a portrait phone, anatomy scenes (3–7) are dollied back so the full
+    // engine fits the narrower frame (framedCameraPosition); desktop is unchanged.
+    const p = framedCameraPosition(component, idx, cam);
     gsap.to(component.camera.position, {
-      x: cam.position[0], y: cam.position[1], z: cam.position[2],
+      x: p.x, y: p.y, z: p.z,
       duration: dur, ease: 'power3.inOut',
     });
     gsap.to(component.cameraTarget, {
@@ -409,7 +539,9 @@ export function transitionScene(component, idx) {
       // Return to intro — restore full aircraft, sky, bright lighting
       component.engine.visible = false;
       component.aircraftBody.visible = true;
-      setAircraftPose(component, 'base', prevIdx === 2 ? dur : 0);
+      // Coming from the finale, keep the plane at its cruise altitude (seamless
+      // loop). Otherwise restore the runway base pose.
+      if (prevIdx !== 8) setAircraftPose(component, 'base', prevIdx === 2 ? dur : 0);
       component.aircraftBody.traverse(child => {
         if (child.material) child.material.opacity = 1.0;
       });
@@ -424,7 +556,9 @@ export function transitionScene(component, idx) {
       if (component.sky) component.sky.visible = true;
       if (component.clouds) {
         component.clouds.visible = true;
-        component.clouds.children.forEach(s => { s.material.opacity = 0; }); // fade in
+        // Keep the finale's already-faded-in clouds on a seamless loop; otherwise
+        // start them from 0 and fade in.
+        if (prevIdx !== 8) component.clouds.children.forEach(s => { s.material.opacity = 0; });
       }
 
     } else if (idx === 1) {
@@ -553,6 +687,17 @@ export function transitionScene(component, idx) {
     else                                      component.setBloom(component.BLOOM_BASE, 0.6);
   }
 
+  // ── Tone-mapping exposure ────────────────────────────────────────────────────
+  // The atmospheric Sky shader is HDR; ACES tone mapping desaturates it toward
+  // white at full exposure (why the sky looked pale, not blue). Dim the sky scenes
+  // (0 + finale) so the blue reads; keep full exposure for the engine anatomy.
+  if (component.renderer) {
+    gsap.to(component.renderer, {
+      toneMappingExposure: (idx === 0 || idx === 8) ? 0.55 : 1.0,
+      duration: 0.8, ease: 'power2.out',
+    });
+  }
+
   // ── Combustion reset when leaving Scene 5 ────────────────────────────────────
   if (prevIdx === 5 && idx !== 5 && component.ignited) {
     component.ignited = false;
@@ -617,7 +762,7 @@ export function transitionScene(component, idx) {
       0: '&#x2192;&nbsp;&nbsp;VIEW ENGINE',
       1: '&#x2193;&nbsp;&nbsp;EXPLORE ENGINE',
       2: '&#x2192;&nbsp;&nbsp;BEGIN WALKTHROUGH',
-      8: '&#x21BA;&nbsp;&nbsp;REPLAY',
+      // Scene 8 (finale) auto-loops back to Scene 0 at cruise — no manual REPLAY CTA.
     };
     if (CTA[idx] !== undefined) {
       exploreBtn.innerHTML = CTA[idx];
@@ -632,6 +777,22 @@ export function transitionScene(component, idx) {
       gsap.to(exploreBtn, {
         opacity: 0, duration: 0.3,
         onComplete() { exploreBtn.style.display = 'none'; },
+      });
+    }
+  }
+
+  // ── Secondary CTA: "Watch takeoff" — Scene 0 only, jumps to the finale ────────
+  const takeoffBtn = component.shadowRoot.querySelector('[data-takeoff]');
+  if (takeoffBtn) {
+    if (idx === 0) {
+      takeoffBtn.style.display = 'flex';
+      takeoffBtn.style.pointerEvents = 'auto';
+      gsap.to(takeoffBtn, { opacity: 1, duration: 0.6, delay: 0.85 });
+    } else {
+      takeoffBtn.style.pointerEvents = 'none';
+      gsap.to(takeoffBtn, {
+        opacity: 0, duration: 0.3,
+        onComplete() { takeoffBtn.style.display = 'none'; },
       });
     }
   }

@@ -5,12 +5,29 @@ import 'lenis/dist/lenis.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Always (re)load at the hero, never a restored mid-scroll position. The hero is a
+// pinned ScrollTrigger timeline; restoring into the pinned region while the GLB,
+// fonts and images are still loading (and shifting layout) leaves the pin and the
+// plane animation in a broken state — and a clean top start matches the cinematic
+// intent. Set before anything else so the browser doesn't restore first.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
 // ── Smooth scrolling — Lenis driven by GSAP's ticker and synced to
 //    ScrollTrigger so the pinned hero timeline stays frame-accurate. ──
 const lenis = new Lenis();
 lenis.on('scroll', ScrollTrigger.update);
 gsap.ticker.add((time) => lenis.raf(time * 1000));
 gsap.ticker.lagSmoothing(0);
+
+// Pin the start to the top — both the native scroll and Lenis's own position —
+// covering browsers that still jump to the old offset after load.
+window.scrollTo(0, 0);
+lenis.scrollTo(0, { immediate: true });
+window.addEventListener('load', () => {
+  window.scrollTo(0, 0);
+  lenis.scrollTo(0, { immediate: true });
+  ScrollTrigger.refresh(); // recompute pin start/end once assets have settled
+});
 
 const plane     = document.querySelector('.hero__plane');
 const center    = document.querySelector('.hero__center');

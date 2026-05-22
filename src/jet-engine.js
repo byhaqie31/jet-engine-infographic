@@ -23,6 +23,7 @@ import {
   buildExhaustParticles,
   tickParticles,
   transitionScene,
+  reframeForResize,
 } from './scenes.js';
 import { buildSky, buildClouds, tickClouds } from './sky.js';
 import { initTooltips, initIgnition } from './interactions.js';
@@ -233,6 +234,50 @@ const styles = `
     color: var(--color-ink-muted);
   }
 
+  /* Right cluster: progress bar + replay control to its right */
+  .topbar__right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .topbar__replay {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-sharp);
+    background: transparent;
+    color: var(--color-ink-muted);
+    cursor: pointer;
+    transition: color var(--duration-quick, 0.3s) var(--ease-precise),
+                border-color var(--duration-quick, 0.3s) var(--ease-precise),
+                background var(--duration-quick, 0.3s) var(--ease-precise);
+  }
+
+  .topbar__replay svg {
+    width: 15px;
+    height: 15px;
+    display: block;
+    transition: transform 0.6s var(--ease-out);
+  }
+
+  .topbar__replay:hover {
+    color: var(--color-ink-primary);
+    border-color: var(--color-ink-muted);
+  }
+
+  /* Spin the icon back a half-turn on hover — a small "rewind" hint */
+  .topbar__replay:hover svg { transform: rotate(-0.5turn); }
+
+  .topbar__replay:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+
   .topbar__progress {
     width: 120px;
     height: 2px;
@@ -362,12 +407,22 @@ const styles = `
     letter-spacing: -0.01em;
   }
 
-  /* ---------- EXPLORE / VIEW ENGINE BUTTON (solid dark) ---------- */
-  .explore-btn {
+  /* ---------- SCENE 0 CTA ROW — primary + secondary side by side ---------- */
+  .stage-cta {
     position: absolute;
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    z-index: 15;
+  }
+
+  /* ---------- EXPLORE / VIEW ENGINE BUTTON (solid dark) ---------- */
+  .explore-btn {
     background: var(--color-bg-base);
     border: 1px solid rgba(255, 255, 255, 0.22);
     color: var(--color-ink-primary);
@@ -410,6 +465,39 @@ const styles = `
   }
 
   .explore-btn.is-pulsing { animation: explorePulse 2.4s var(--ease-out) infinite; }
+
+  /* Secondary CTA (Scene 0) — solid white, sits to the right of VIEW ENGINE. */
+  .takeoff-btn {
+    background: var(--color-ink-primary);
+    border: 1px solid var(--color-ink-primary);
+    color: var(--color-bg-base);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    border-radius: var(--radius-sharp);
+    cursor: pointer;
+    display: none;            /* toggled to flex on Scene 0 */
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    white-space: nowrap;
+    transition: background var(--duration-quick, 0.3s) var(--ease-precise),
+                box-shadow var(--duration-quick, 0.3s) var(--ease-precise),
+                color var(--duration-quick, 0.3s) var(--ease-precise);
+  }
+
+  .takeoff-btn:hover {
+    box-shadow: 0 0 20px rgba(245, 245, 240, 0.3);
+  }
+
+  .takeoff-btn:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 3px;
+  }
 
   /* ---------- STAGE NAV (click-through for scenes 3–7) ---------- */
   .stage-nav {
@@ -597,7 +685,10 @@ const styles = `
   @media (max-width: 768px) {
     .scene-info { padding: 16px 20px 14px; }
     .info-topbar { margin-bottom: 12px; }
-    .topbar__progress { width: 88px; }
+    .topbar__right { gap: 10px; }
+    .topbar__replay { width: 34px; height: 34px; }
+    .topbar__replay svg { width: 16px; height: 16px; }
+    .topbar__progress { width: 72px; }
     .headline { margin-bottom: 12px; }
     .stage { aspect-ratio: 375 / 560; max-height: 560px; }
     .headline__title { font-size: 24px; }
@@ -611,9 +702,12 @@ const styles = `
       font-size: 10px; padding: 12px 24px; min-height: 44px;
       justify-content: center;
     }
+    .stage-cta { bottom: 16px; gap: 8px; max-width: calc(100% - 24px); }
     .explore-btn {
-      font-size: 10px; padding: 12px 22px; min-height: 44px;
-      justify-content: center; bottom: 16px;
+      font-size: 10px; padding: 12px 18px; min-height: 44px;
+    }
+    .takeoff-btn {
+      font-size: 10px; padding: 12px 18px; min-height: 44px;
     }
     .stage-nav { bottom: 16px; padding: 0 16px; }
     .stage-nav__btn {
@@ -692,8 +786,18 @@ class JetEngineInfographic extends HTMLElement {
       <div class="scene-info">
         <div class="info-topbar">
           <div class="topbar__label" data-scene-label>${scene.label}</div>
-          <div class="topbar__progress">
-            <div class="topbar__progress-bar" data-progress></div>
+          <div class="topbar__right">
+            <div class="topbar__progress">
+              <div class="topbar__progress-bar" data-progress></div>
+            </div>
+            <button class="topbar__replay" data-replay type="button"
+                    aria-label="Replay from the start" title="Replay from the start">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            </button>
           </div>
         </div>
         <div class="headline">
@@ -711,7 +815,11 @@ class JetEngineInfographic extends HTMLElement {
         <!-- Scene 0 interaction hint — how to play with the 3D view -->
         <div class="orbit-hint" data-orbit-hint>Drag to orbit&nbsp;·&nbsp;scroll to zoom&nbsp;·&nbsp;hover to explore</div>
 
-        <button class="explore-btn" data-explore>&#x2192;&nbsp;&nbsp;VIEW ENGINE</button>
+        <!-- Scene 0 CTA row: primary VIEW ENGINE + secondary white "Watch takeoff" -->
+        <div class="stage-cta">
+          <button class="explore-btn" data-explore>&#x2192;&nbsp;&nbsp;VIEW ENGINE</button>
+          <button class="takeoff-btn" data-takeoff type="button">&#x2197;&nbsp;&nbsp;Watch takeoff</button>
+        </div>
 
         <!-- Click-through nav for the thrust stages (scenes 3–7) -->
         <div class="stage-nav" data-stage-nav>
@@ -779,7 +887,7 @@ class JetEngineInfographic extends HTMLElement {
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = 0.55; // initial scene is the sky (Scene 0); dimmed so the sky reads blue
     host.appendChild(this.renderer.domElement);
 
     // ---------- POST-PROCESSING: selective bloom ----------
@@ -937,6 +1045,15 @@ class JetEngineInfographic extends HTMLElement {
           setTimeout(() => exploreBtn.classList.add('is-pulsing'), 2000);
         }
 
+        // Secondary CTA — skip straight to the takeoff finale. transitionScene
+        // handles it on later visits to Scene 0, but the very first Scene 0 is set
+        // up here (transitionScene isn't called on initial load), so reveal it too.
+        const takeoffBtn = this.shadowRoot.querySelector('[data-takeoff]');
+        if (takeoffBtn && this.currentScene === 0) {
+          takeoffBtn.style.display = 'flex';
+          gsap.fromTo(takeoffBtn, { opacity: 0 }, { opacity: 1, duration: 0.8, delay: 1.0 });
+        }
+
         // Reveal the Scene 0 interaction hint once the aircraft is interactive.
         const orbitHint = this.shadowRoot.querySelector('[data-orbit-hint]');
         if (orbitHint && this.currentScene === 0) {
@@ -1008,6 +1125,9 @@ class JetEngineInfographic extends HTMLElement {
     this.renderer.setSize(width, height);
     this.composer?.setSize(width, height);
     this.bloomPass?.setSize(width, height);
+    // Re-fit the engine if the stage aspect changed (e.g. crossing the mobile
+    // breakpoint) while parked on a static anatomy scene.
+    reframeForResize(this);
   }
 
   // ---------- INTERACTIONS ----------
@@ -1020,6 +1140,14 @@ class JetEngineInfographic extends HTMLElement {
         else if (this.currentScene === 8) this.goToScene(0); // replay
       });
     }
+
+    // Replay control in the top bar — jump straight back to Scene 0 from anywhere.
+    this.shadowRoot.querySelector('[data-replay]')
+      ?.addEventListener('click', () => this.goToScene(0));
+
+    // Secondary Scene 0 CTA — skip straight to the takeoff finale (Scene 8).
+    this.shadowRoot.querySelector('[data-takeoff]')
+      ?.addEventListener('click', () => this.goToScene(8));
 
     // Click-through stage nav (scenes 3–7). Next on Scene 7 leads to the finale.
     this.shadowRoot.querySelector('[data-stage-prev]')
@@ -1081,8 +1209,17 @@ class JetEngineInfographic extends HTMLElement {
     // Drive camera lookAt from the tweened cameraTarget (not active when OrbitControls is on).
     // Ease in the cursor-parallax offset so the view leans gently toward the pointer.
     if (!this.controls.enabled && this.cameraTarget) {
-      this._parallax.lerp(this._parallaxTarget, 0.06);
-      _lookTmp.copy(this.cameraTarget).add(this._parallax);
+      // Cursor parallax is for the scripted anatomy scenes only. During the finale
+      // takeoff (scene 8) keep the lookAt clean — otherwise the parallax offset is
+      // dropped the instant OrbitControls takes over at cruise, snapping the view.
+      if (this.currentScene === 8) {
+        this._parallax.set(0, 0, 0);
+        this._parallaxTarget.set(0, 0, 0);
+        _lookTmp.copy(this.cameraTarget);
+      } else {
+        this._parallax.lerp(this._parallaxTarget, 0.06);
+        _lookTmp.copy(this.cameraTarget).add(this._parallax);
+      }
       this.camera.lookAt(_lookTmp);
     }
 

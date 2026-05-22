@@ -21,14 +21,18 @@ export function buildSky() {
   sky.scale.setScalar(450000);
 
   const u = sky.material.uniforms;
-  u.turbidity.value       = 7;
-  u.rayleigh.value        = 1.4;
-  u.mieCoefficient.value  = 0.006;
+  // NOTE: higher rayleigh = a *brighter* sky, and under ACES tone mapping bright
+  // colours desaturate toward white — so cranking rayleigh up actually washes the
+  // blue out. The blue reads best with a modest rayleigh + low exposure (set per
+  // scene in scenes.js). Keep these values low.
+  u.turbidity.value       = 3;     // mild haze; lower = clearer/deeper blue
+  u.rayleigh.value        = 2;     // modest — the sweet spot for a saturated blue
+  u.mieCoefficient.value  = 0.005;
   u.mieDirectionalG.value = 0.8;
 
-  // Sun fairly high and to one side — clean daytime cruise light.
+  // High midday sun → the blue zenith fills more of the (roughly horizontal) view.
   const sun = new THREE.Vector3();
-  const phi   = THREE.MathUtils.degToRad(90 - 24); // 24° elevation
+  const phi   = THREE.MathUtils.degToRad(90 - 48); // 48° elevation
   const theta = THREE.MathUtils.degToRad(150);
   sun.setFromSphericalCoords(1, phi, theta);
   u.sunPosition.value.copy(sun);

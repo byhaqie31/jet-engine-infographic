@@ -203,18 +203,23 @@ function _cameraReveal(component) {
   const base   = cam.position.clone();
 
   // Wider framing: dolly outward along the current view direction, lifted a touch.
+  // Pull back a fixed *amount* (not a ratio) so the reveal reads the same whether
+  // the camera starts close (desktop close-up, ~3u) or far (mobile full-engine
+  // framing, ~15u) — a 1.7× ratio would over-shrink the already-wide mobile shot.
   const dir    = base.clone().sub(target).normalize();
   const dist   = base.distanceTo(target);
-  const pulled = target.clone().add(dir.multiplyScalar(dist * 1.7));
+  const pulled = target.clone().add(dir.multiplyScalar(dist + 2));
   pulled.y += 0.5;
 
   const shake = { p: 1 };
   gsap.timeline()
-    // 1. Impact jolt around the close framing
+    // 1. Impact jolt around the close framing. Amplitude scales with distance so
+    //    the jolt stays visible at the farther mobile framing (a fixed offset
+    //    would vanish that far out; ~0.03·dist matches the old 0.09 at dist 3).
     .to(shake, {
       p: 0, duration: 0.4, ease: 'power2.out',
       onUpdate() {
-        const amt = shake.p * 0.09;
+        const amt = shake.p * dist * 0.03;
         cam.position.set(
           base.x + (Math.random() - 0.5) * amt,
           base.y + (Math.random() - 0.5) * amt,
