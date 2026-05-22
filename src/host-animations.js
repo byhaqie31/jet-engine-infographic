@@ -94,3 +94,103 @@ if (plane) {
     ease: 'power2.out',
   }, 4.5);
 }
+
+// ════════════════════════════════════════════════════════════════════
+//  EDITORIAL SECTIONS — stat strip · sticky chapters · pull quote
+//  These extend the hero timeline above rather than replacing it. None of
+//  them pin (the chapter media pins via CSS position:sticky, not a
+//  ScrollTrigger pin), so they never compete with the hero's pinned
+//  scroll space. Each is an independent ScrollTrigger.create() with
+//  explicit start/end, created after the hero trigger so ScrollTrigger
+//  sorts them in document order, and all share the Lenis-synced ticker.
+// ════════════════════════════════════════════════════════════════════
+
+const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ── SECTION A: stat strip — count up from 0 once on entry ──
+document.querySelectorAll('.stat-strip__value').forEach((el) => {
+  const target = parseInt(el.dataset.countTo, 10);
+  const suffix = el.dataset.suffix || '';
+  const render = (v) => { el.textContent = Math.round(v).toLocaleString() + suffix; };
+
+  // Reduced motion: snap straight to the final value, no animation.
+  if (prefersReduced) { render(target); return; }
+
+  const obj = { value: 0 };
+  ScrollTrigger.create({
+    trigger: el,
+    start: 'top 80%',
+    once: true,
+    onEnter: () => gsap.to(obj, {
+      value: target,
+      duration: 2.0,
+      ease: 'power3.out',
+      onUpdate: () => render(obj.value),
+    }),
+  });
+});
+
+// ── SECTION B: sticky chapters — cross-fade media to the centred chapter ──
+const chapterImgs = document.querySelectorAll('.chapters__media [data-chapter-img]');
+
+function swapChapterImage(activeIdx) {
+  chapterImgs.forEach((img) => {
+    img.classList.toggle('is-active', Number(img.dataset.chapterImg) === activeIdx);
+  });
+}
+
+document.querySelectorAll('.chapter').forEach((chapter) => {
+  const idx = parseInt(chapter.dataset.chapter, 10);
+  // The CSS opacity transition handles the fade (and collapses to instant
+  // under prefers-reduced-motion via the global reduced-motion rule), so the
+  // trigger only needs to flip the active class.
+  ScrollTrigger.create({
+    trigger: chapter,
+    start: 'top 60%',
+    end: 'bottom 40%',
+    onEnter: () => swapChapterImage(idx),
+    onEnterBack: () => swapChapterImage(idx),
+  });
+});
+
+// ── SECTION C: pull quote — background parallax + text reveal ──
+const quoteBlock = document.querySelector('.quote-block');
+if (quoteBlock) {
+  const bg = quoteBlock.querySelector('.quote-block__bg');
+  const text = quoteBlock.querySelector('.quote-block__text');
+  const attribution = quoteBlock.querySelector('.quote-block__attribution');
+
+  if (!prefersReduced) {
+    // Parallax: transform only (never top/left), scrubbed for smoothness.
+    if (bg) {
+      ScrollTrigger.create({
+        trigger: quoteBlock,
+        start: 'top bottom',
+        end: 'bottom top',
+        scrub: 1,
+        onUpdate: (self) => {
+          const y = (self.progress - 0.5) * 16;   // -8% → +8%
+          bg.style.transform = `translateY(${y}%)`;
+        },
+      });
+    }
+
+    // Text reveals on entry; attribution follows 0.4s later.
+    if (text) {
+      ScrollTrigger.create({
+        trigger: text,
+        start: 'top 75%',
+        once: true,
+        onEnter: () => {
+          gsap.from(text, { y: 30, opacity: 0, duration: 1.2, ease: 'power3.out' });
+          if (attribution) {
+            gsap.from(attribution, {
+              y: 20, opacity: 0, duration: 1, delay: 0.4, ease: 'power3.out',
+            });
+          }
+        },
+      });
+    }
+  }
+  // Reduced motion: no parallax, no reveal — quote sits at its static final state.
+}

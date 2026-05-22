@@ -85,7 +85,9 @@
 
     <!-- Faux editorial host page to demonstrate the embedded component -->
     <div class="article-wrapper">
-    <main class="host-article">
+
+    <!-- Intro prose column (narrow, typographic) -->
+    <main class="host-article host-article--intro">
       <h1 class="host-article__title">
         The machine that bends physics for a living.
       </h1>
@@ -96,7 +98,86 @@
         enough to drag a building through the sky. Scroll through the anatomy of
         thrust below.
       </p>
+    </main>
 
+    <!-- ═══ SECTION B — Sticky chapter scroll (3DS signature pattern) ═══
+         The media column pins (CSS position:sticky — not a ScrollTrigger pin),
+         the right column scrolls through three chapters, and host-animations.js
+         cross-fades the media to match the chapter at viewport centre. -->
+    <section class="chapters" aria-label="The aircraft, the engine, the trial">
+      <div class="chapters__inner">
+        <div class="chapters__media" data-media>
+          <img src="/chapter-1.png" alt="A350-1000 silhouette in flight"
+               class="chapters__img is-active" data-chapter-img="0"
+               loading="lazy" decoding="async" />
+          <img src="/chapter-2.png" alt="Trent XWB-97 engine cutaway"
+               class="chapters__img" data-chapter-img="1"
+               loading="lazy" decoding="async" />
+          <img src="/chapter-3.png" alt="Engine test rig under load"
+               class="chapters__img" data-chapter-img="2"
+               loading="lazy" decoding="async" />
+        </div>
+
+        <div class="chapters__content">
+          <article class="chapter" data-chapter="0">
+            <div class="chapter__label">Chapter 01 · The Aircraft</div>
+            <h2 class="chapter__title">A system of compromises.</h2>
+            <p class="chapter__body">
+              An aircraft is rarely the best at any one thing. Range trades against
+              payload. Speed trades against fuel. Reliability trades against weight.
+              The A350-1000 sits at the intersection of every compromise a modern
+              long-haul wide-body must make — and gets closer than anything before it.
+            </p>
+          </article>
+
+          <article class="chapter" data-chapter="1">
+            <div class="chapter__label">Chapter 02 · The Engine</div>
+            <h2 class="chapter__title">But the engine is its own miracle.</h2>
+            <p class="chapter__body">
+              The Trent XWB-97 is the most powerful civil turbofan in service. It moves
+              more air, runs hotter, and lasts longer than any engine of its size in
+              aviation history. It is also the only engine certified for the A350-1000 —
+              a calculated bet that paid off for both Rolls-Royce and Airbus.
+            </p>
+          </article>
+
+          <article class="chapter" data-chapter="2">
+            <div class="chapter__label">Chapter 03 · The Trial</div>
+            <h2 class="chapter__title">Eleven million pounds of testing.</h2>
+            <p class="chapter__body">
+              Before a single XWB-97 carried a passenger, the family endured the
+              equivalent of decades of service in test cells: simulated bird strikes,
+              dust ingestion, ice ingestion, blade-off events, and thousands of hours
+              at maximum thrust. What follows is the choreography that survived all of it.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION A — Animated stat strip (sits directly above the infographic) ═══
+         Numbers count up from 0 once, when the strip enters the viewport. -->
+    <section class="stat-strip" aria-label="Key engine and aircraft figures">
+      <div class="stat-strip__item">
+        <div class="stat-strip__value" data-count-to="97000" data-suffix=" lbf">0</div>
+        <div class="stat-strip__label">Thrust per engine</div>
+      </div>
+      <div class="stat-strip__item">
+        <div class="stat-strip__value" data-count-to="12200" data-suffix=" RPM">0</div>
+        <div class="stat-strip__label">HP shaft speed</div>
+      </div>
+      <div class="stat-strip__item">
+        <div class="stat-strip__value" data-count-to="1700" data-suffix="°C">0</div>
+        <div class="stat-strip__label">Combustion temperature</div>
+      </div>
+      <div class="stat-strip__item">
+        <div class="stat-strip__value" data-count-to="16100" data-suffix=" km">0</div>
+        <div class="stat-strip__label">Aircraft max range</div>
+      </div>
+    </section>
+
+    <!-- Outro prose column — keeps the embed's existing full-bleed breakout -->
+    <main class="host-article host-article--outro">
       <!-- THE EMBEDDED INTERACTIVE ASSET -->
       <figure class="host-article__embed">
         <jet-engine-infographic></jet-engine-infographic>
@@ -118,6 +199,24 @@
         host framework.
       </p>
     </main>
+
+    <!-- ═══ SECTION C — Pull quote with parallax (full-bleed dark moment) ═══ -->
+    <section class="quote-block" aria-label="Pull quote">
+      <div class="quote-block__bg" data-parallax aria-hidden="true">
+        <img src="/quote-bg.png" alt="" aria-hidden="true" loading="lazy" decoding="async" />
+      </div>
+
+      <blockquote class="quote-block__quote">
+        <p class="quote-block__text">
+          The engine doesn't care about the weather. It cares about thrust, fuel
+          flow, and turbine inlet temperature. Everything else is poetry.
+        </p>
+        <footer class="quote-block__attribution">
+          <span class="quote-block__rule"></span>
+          <cite>Capt. Reza · A350 line pilot</cite>
+        </footer>
+      </blockquote>
+    </section>
 
     <footer class="host-footer">
       <span>© Axel Nova Dispatch</span>
