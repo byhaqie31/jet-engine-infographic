@@ -182,6 +182,122 @@ function revealEngine(component, dur) {
   });
 }
 
+// ─── FINALE: TAKEOFF + CRUISE ─────────────────────────────────────────────────
+
+// Aircraft visual centre at the base pose (matches the finale orbit lookAt). The
+// takeoff camera + orbit work in deltas from this known-good point.
+const _TAKEOFF_CENTER = new THREE.Vector3(-6, 2.4, -1.2);
+const _pitchAxis = new THREE.Vector3(1, 0, 0);
+const _pitchQuat = new THREE.Quaternion();
+
+// Chase-cam scratch + framing offsets (camera position relative to the jet centre).
+const _center  = new THREE.Vector3();
+const _camOff  = new THREE.Vector3();
+const _lowCam  = new THREE.Vector3(22, -1.5, 31);   // low — shows the runway during the roll
+const _heroCam = new THREE.Vector3(22,  2.1, 31.2); // hero framing once climbed (matches finale orbit radius)
+
+/**
+ * Pitch the aircraft nose up/down without disturbing its baked yaw. After the
+ * nose→+X rotation the group's local +X is the wing (lateral) axis, so rotating
+ * about it pitches the nose. Negative angle = nose up — flip the sign here if it
+ * ever reads inverted on a re-exported model.
+ */
+function setAircraftPitch(component, noseUpRad) {
+  const body  = component.aircraftBody;
+  const level = component._aircraftLevelQuat;
+  if (!body || !level) return;
+  _pitchQuat.setFromAxisAngle(_pitchAxis, -noseUpRad);
+  body.quaternion.copy(level).multiply(_pitchQuat);
+}
+
+/** Gentle cruise loop — the aircraft bobs and banks while the clouds stream past. */
+function startCruiseBob(component) {
+  const body = component.aircraftBody;
+  const baseY = body.position.y;
+  if (component._flyTween) component._flyTween.kill();
+  component._flyTween = gsap.timeline({ repeat: -1, yoyo: true })
+    .fromTo(body.position, { y: baseY - 0.3 }, { y: baseY + 0.5, duration: 3.6, ease: 'sine.inOut' }, 0)
+    .fromTo(body.rotation, { z: -0.03 },       { z: 0.05,        duration: 4.2, ease: 'sine.inOut' }, 0);
+}
+
+/** Set the runway's overall opacity (it's a group of several meshes/materials),
+ *  so it can cross-fade out as the aircraft climbs away rather than popping. */
+function setRunwayOpacity(component, o) {
+  const runway = component.runway;
+  if (!runway) return;
+  runway.traverse((node) => {
+    if (!node.material) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => { mat.transparent = true; mat.opacity = o; });
+  });
+}
+
+/**
+ * Scene 8 — the aircraft rolls down the runway, rotates nose-up, lifts off and
+ * climbs into the sky, then settles into the gentle cruise orbit. The camera and
+ * orbit target pan with the jet (deltas from _TAKEOFF_CENTER) so it stays framed.
+ * DX / LIFT / BACK are the obvious tuning knobs.
+ */
+function playTakeoff(component) {
+  const body = component.aircraftBody;
+  const base = component._aircraftBase;
+  if (!body || !base) return;
+
+  const DX = 14, LIFT = 6, BACK = 22;   // forward distance · climb height · how far back it starts
+  const ROLL_DUR = 6.6;                 // long ground roll — "gathering thrust" before rotation
+  const groundY = base.pos.y;
+  const centerOffset = _TAKEOFF_CENTER.clone().sub(base.pos); // jet centre = body.position + this
+
+  // Start: parked at the back of the runway, level.
+  setAircraftPose(component, 'base', 0);
+  body.position.x = base.pos.x - BACK;
+  setAircraftPitch(component, 0);
+  if (component.runway) {
+    component.runway.visible = true;
+    setRunwayOpacity(component, 1);
+  }
+
+  // Chase cam: always centred on the jet — sits low to show the runway during the
+  // roll and rises to the hero framing only as the jet gains altitude (driven by
+  // climb height, not elapsed time, so a longer roll never out-runs the camera).
+  component.controls.enabled = false;
+  _center.copy(body.position).add(centerOffset);
+  component.camera.position.copy(_center).add(_lowCam);
+  component.cameraTarget.copy(_center);
+
+  const pitch = { v: 0 };
+  const fade  = { o: 1 };
+  if (component._flyTween) component._flyTween.kill();
+  component._flyTween = gsap.timeline({
+    onUpdate() {
+      _center.copy(body.position).add(centerOffset);
+      const climbT = THREE.MathUtils.clamp((body.position.y - groundY) / LIFT, 0, 1);
+      _camOff.lerpVectors(_lowCam, _heroCam, climbT);
+      component.camera.position.copy(_center).add(_camOff);
+      component.cameraTarget.copy(_center);
+    },
+    onComplete() {
+      setAircraftPitch(component, 0);
+      if (component.runway) component.runway.visible = false;
+      _center.copy(body.position).add(centerOffset);
+      component.controls.target.copy(_center);
+      component.controls.minDistance = 22;
+      component.controls.maxDistance = 90;
+      component.controls.enabled = true;
+      component.controls.autoRotate = true;
+      startCruiseBob(component);
+    },
+  })
+    .to(body.position, { x: base.pos.x - 2, duration: ROLL_DUR, ease: 'power1.in' }, 0)        // roll — accelerate down the runway
+    .to(pitch, { v: 0.17, duration: 0.8, ease: 'power2.out',
+        onUpdate: () => setAircraftPitch(component, pitch.v) }, ROLL_DUR - 0.5)                 // rotate (nose up) near Vr
+    .to(body.position, { x: base.pos.x + DX, y: groundY + LIFT, duration: 3.4, ease: 'power2.out' }, ROLL_DUR) // lift off + climb
+    .to(pitch, { v: 0.05, duration: 2.6, ease: 'power1.inOut',
+        onUpdate: () => setAircraftPitch(component, pitch.v) }, ROLL_DUR + 1.0)                 // settle to cruise angle
+    .to(fade, { o: 0, duration: 2.6, ease: 'power1.inOut',
+        onUpdate: () => setRunwayOpacity(component, fade.o) }, ROLL_DUR + 0.4);                 // fade runway as it climbs away
+}
+
 // ─── SCENE TRANSITION ─────────────────────────────────────────────────────────
 
 /**
@@ -203,10 +319,11 @@ export function transitionScene(component, idx) {
   if (prevIdx === 8 && !isFinale) {
     if (component.sky)    component.sky.visible = false;
     if (component.clouds) component.clouds.visible = false;
+    if (component.runway) component.runway.visible = false;
     component._finaleActive = false;
     component.controls.autoRotate = false;
     if (component._flyTween) { component._flyTween.kill(); component._flyTween = null; }
-    if (component.aircraftBody) component.aircraftBody.rotation.z = 0;
+    setAircraftPitch(component, 0); // undo any takeoff/cruise tilt
   }
 
   // ── Wheel ownership ───────────────────────────────────────────────────────────
@@ -216,6 +333,17 @@ export function transitionScene(component, idx) {
   component.controls.enableZoom = isOrbitScene;
   component.toggleAttribute('data-lenis-prevent', isOrbitScene);
 
+  // Sky shader + clouds belong to the two in-sky scenes (0 + finale). Default them
+  // off here; the Scene 0 and finale branches below switch them back on.
+  if (idx !== 0 && idx !== 8) {
+    if (component.sky)    component.sky.visible = false;
+    if (component.clouds) component.clouds.visible = false;
+  }
+
+  // Auto-rotate is re-enabled per orbit scene below; reset it on every transition
+  // so it never carries over into the scripted (non-orbit) scenes.
+  component.controls.autoRotate = false;
+
   // ── Camera ──────────────────────────────────────────────────────────────────
   // Cancel any in-flight camera move (e.g. the ignition pull-back) so the new
   // scene's tween takes over cleanly.
@@ -223,24 +351,10 @@ export function transitionScene(component, idx) {
   gsap.killTweensOf(component.cameraTarget);
 
   if (isFinale) {
-    // Finale — fly to a hero sky shot, then slowly auto-orbit the aircraft
+    // The finale camera is driven by playTakeoff() in the aircraft section below —
+    // it pans + climbs with the jet — so just release control here.
     component.controls.enabled = false;
     component.controls.autoRotate = false;
-    gsap.to(component.camera.position, {
-      x: cam.position[0], y: cam.position[1], z: cam.position[2],
-      duration: dur, ease: 'power3.inOut',
-      onComplete() {
-        component.controls.target.set(cam.lookAt[0], cam.lookAt[1], cam.lookAt[2]);
-        component.controls.minDistance = 22;
-        component.controls.maxDistance = 90;
-        component.controls.autoRotate = true;
-        component.controls.enabled = true;
-      },
-    });
-    gsap.to(component.cameraTarget, {
-      x: cam.lookAt[0], y: cam.lookAt[1], z: cam.lookAt[2],
-      duration: dur, ease: 'power3.inOut',
-    });
   } else if (idx === 0) {
     // Return to aircraft intro — tween camera, then restore aircraft orbit
     component.controls.enabled = false;
@@ -252,6 +366,7 @@ export function transitionScene(component, idx) {
         component.controls.minDistance = 18;
         component.controls.maxDistance = 65;
         component.controls.enabled = true;
+        component.controls.autoRotate = true; // resume the gentle Scene 0 spin
       },
     });
     gsap.to(component.cameraTarget, {
@@ -286,12 +401,19 @@ export function transitionScene(component, idx) {
       component.aircraftBody.traverse(child => {
         if (child.material) child.material.opacity = 1.0;
       });
-      component.threeScene.background = new THREE.Color(0xB8CDD8);
-      component.threeScene.fog.color.set(0xB8CDD8);
-      component.threeScene.fog.near = 52;
-      component.threeScene.fog.far  = 140;
-      if (component._ambientLight) component._ambientLight.intensity = 1.2;
-      if (component._keyLight)     component._keyLight.intensity     = 1.8;
+      // Scene 0 shares the finale's in-sky look: Sky shader + drifting clouds,
+      // background cleared so the shader shows, fog pushed far off the aircraft.
+      component.threeScene.background = null;
+      component.threeScene.fog.color.set(0xBFD8EC);
+      component.threeScene.fog.near = 220;
+      component.threeScene.fog.far  = 1400;
+      if (component._ambientLight) component._ambientLight.intensity = 1.1;
+      if (component._keyLight)     component._keyLight.intensity     = 2.0;
+      if (component.sky) component.sky.visible = true;
+      if (component.clouds) {
+        component.clouds.visible = true;
+        component.clouds.children.forEach(s => { s.material.opacity = 0; }); // fade in
+      }
 
     } else if (idx === 1) {
       // Side-angle engine approach — aircraft stays full, engine hidden, sky maintained
@@ -352,10 +474,9 @@ export function transitionScene(component, idx) {
       }
 
     } else if (idx === 8) {
-      // Finale — restore the full aircraft against an atmospheric sky
+      // Finale — the aircraft takes off from the runway and climbs into the sky.
       component.engine.visible = false;
       component.aircraftBody.visible = true;
-      setAircraftPose(component, 'base', 0);
       component.aircraftBody.traverse(child => {
         if (child.material) child.material.opacity = 1.0;
       });
@@ -375,13 +496,8 @@ export function transitionScene(component, idx) {
       }
       component._finaleActive = true;
 
-      // Gentle flight — the aircraft bobs and banks while the clouds stream past
-      if (component._flyTween) component._flyTween.kill();
-      const body  = component.aircraftBody;
-      const baseY = body.position.y;
-      component._flyTween = gsap.timeline({ repeat: -1, yoyo: true })
-        .fromTo(body.position, { y: baseY - 0.3 }, { y: baseY + 0.5, duration: 3.6, ease: 'sine.inOut' }, 0)
-        .fromTo(body.rotation, { z: -0.03 },       { z: 0.05,        duration: 4.2, ease: 'sine.inOut' }, 0);
+      // Roll → rotate → lift off → climb → settle into the gentle cruise orbit.
+      playTakeoff(component);
 
     } else if (prevIdx <= 2 || prevIdx === 8) {
       // Entering Scene 3+ from an aircraft/exterior scene or the finale (dot jump)
@@ -456,6 +572,20 @@ export function transitionScene(component, idx) {
         onComplete() { igniteBtn.style.display = 'none'; },
       });
       if (igniteHint) igniteHint.style.display = 'none';
+    }
+  }
+
+  // ── Scene 0 interaction hint — drag / zoom / hover help for the orbit view ────
+  const orbitHint = component.shadowRoot.querySelector('[data-orbit-hint]');
+  if (orbitHint) {
+    if (idx === 0) {
+      orbitHint.style.display = 'block';
+      gsap.fromTo(orbitHint, { opacity: 0 }, { opacity: 0.6, duration: 0.6, delay: 0.7 });
+    } else {
+      gsap.to(orbitHint, {
+        opacity: 0, duration: 0.3,
+        onComplete() { orbitHint.style.display = 'none'; },
+      });
     }
   }
 

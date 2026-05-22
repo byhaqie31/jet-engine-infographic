@@ -12,7 +12,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import gsap from 'gsap';
-import { buildEngine } from './engine-model.js';
+import { buildEngine, buildRunway } from './engine-model.js';
 import { loadAircraftWithFallback } from './model-loader.js';
 import {
   buildIntakeParticles,
@@ -522,6 +522,34 @@ const styles = `
     50%      { opacity: 0.95; }
   }
 
+  /* Scene 0 interaction hint — a HUD pill in the corner of the stage. Legible
+     over the bright sky-blue intro via a blurred dark backdrop. JS reveals it
+     on Scene 0 and hides it elsewhere. */
+  .orbit-hint {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    display: none;
+    opacity: 0;
+    z-index: 15;
+    pointer-events: none;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-ink-secondary);
+    background: rgba(10, 11, 15, 0.5);
+    border: 1px solid var(--color-hairline);
+    border-radius: var(--radius-sharp);
+    padding: 8px 12px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    white-space: nowrap;
+  }
+
   /* ---------- LOADING ---------- */
   .loading {
     position: absolute;
@@ -557,6 +585,11 @@ const styles = `
     .data__value { font-size: 15px; }
     .ignite-btn { font-size: 10px; padding: 11px 24px; }
     .explore-btn { font-size: 10px; padding: 11px 20px; bottom: 18px; }
+    .orbit-hint {
+      top: 12px;
+      font-size: 9px; letter-spacing: 0.1em; padding: 7px 12px;
+      white-space: normal; max-width: 80%; line-height: 1.5;
+    }
   }
 
   /* ---------- FOCUS & ACCESSIBILITY ---------- */
@@ -623,6 +656,10 @@ class JetEngineInfographic extends HTMLElement {
 
       <div class="stage">
         <div class="canvas-host"></div>
+
+        <!-- Scene 0 interaction hint — how to play with the 3D view -->
+        <div class="orbit-hint" data-orbit-hint>Drag to orbit&nbsp;·&nbsp;scroll to zoom&nbsp;·&nbsp;hover to explore</div>
+
         <button class="explore-btn" data-explore>&#x2192;&nbsp;&nbsp;VIEW ENGINE</button>
 
         <!-- Click-through nav for the thrust stages (scenes 3–7) -->
@@ -666,7 +703,7 @@ class JetEngineInfographic extends HTMLElement {
 
     // Scene
     this.threeScene = new THREE.Scene();
-    this.threeScene.fog = new THREE.Fog(0xB8CDD8, 52, 135); // sky-blue fog for Scene 0; goes dark in Scene 2+
+    this.threeScene.fog = new THREE.Fog(0xBFD8EC, 220, 1400); // far fog so Scene 0's Sky shader reads clean; pulled in dark for Scene 2+
 
     // Camera — starts at Scene 0 (full aircraft) position
     this.camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 300);
@@ -686,8 +723,9 @@ class JetEngineInfographic extends HTMLElement {
     this.renderer.toneMappingExposure = 1.0;
     host.appendChild(this.renderer.domElement);
 
-    // Sky background for Scene 0 — switched to dark in Scenes 1–5
-    this.threeScene.background = new THREE.Color(0xB8CDD8);
+    // Scene 0 shares the finale's atmospheric Sky shader, so no solid background
+    // here — it's set to a dark Color in Scenes 1–5 and back to null in the finale.
+    this.threeScene.background = null;
 
     // Lighting
     this.threeScene.add(new THREE.AmbientLight(0xC8D8E8, 1.2)); // bright sky ambient for Scene 0
@@ -726,11 +764,20 @@ class JetEngineInfographic extends HTMLElement {
     this.threeScene.add(this.intakeParticles);
     this.threeScene.add(this.exhaustParticles);
 
-    // Finale environment — atmospheric sky + drifting clouds, hidden until Scene 8
+    // Atmospheric sky + drifting clouds. Shared by Scene 0 and the finale, so
+    // they're shown from the start (hidden again for the engine-anatomy scenes).
     this.sky = buildSky();
     this.clouds = buildClouds();
     this.threeScene.add(this.sky);
     this.threeScene.add(this.clouds);
+    this.sky.visible = true;
+    this.clouds.visible = true;
+
+    // Runway for the Scene 8 takeoff — world-space, hidden until the finale.
+    this.runway = buildRunway();
+    this.runway.visible = false;
+    this.threeScene.add(this.runway);
+
     this._finaleActive = false;
 
     // Orbit controls — starts targeting the aircraft body; switches to engine in Scene 6.
@@ -744,10 +791,23 @@ class JetEngineInfographic extends HTMLElement {
     // there but scrolls the host page everywhere else.
     this.controls.enableZoom    = true;
     this.controls.enabled       = false;
-    this.controls.autoRotateSpeed = 0.6; // used only in the finale (Scene 8)
+    this.controls.autoRotateSpeed = 0.6; // gentle auto-rotate — Scene 0 hint + the finale
     this.controls.target.set(-7.7, 3, -1.2);
     this.controls.minDistance   = 14;
     this.controls.maxDistance   = 55;
+
+    // Once the user grabs the model, stop auto-rotating so it doesn't fight their
+    // drag, and retire the Scene 0 hint — they've discovered the interaction.
+    this.controls.addEventListener('start', () => {
+      this.controls.autoRotate = false;
+      const orbitHint = this.shadowRoot.querySelector('[data-orbit-hint]');
+      if (orbitHint && orbitHint.style.display !== 'none') {
+        gsap.to(orbitHint, {
+          opacity: 0, duration: 0.4,
+          onComplete() { orbitHint.style.display = 'none'; },
+        });
+      }
+    });
 
     // Cache references to parts that need per-frame or event-driven animation
     this.fan            = this.engine.getObjectByName('fan');
@@ -778,13 +838,17 @@ class JetEngineInfographic extends HTMLElement {
         this.aircraftBody = model;
         this.threeScene.add(model);
         this._computeAircraftTransforms(model);
+        // Capture the level orientation now (nose → +X), before any bank/pitch —
+        // the takeoff pitches relative to this. See setAircraftPitch() in scenes.js.
+        this._aircraftLevelQuat = model.quaternion.clone();
         if (loadingEl) {
           loadingEl.style.transition = 'opacity 0.8s';
           loadingEl.classList.add('is-hidden');
         }
 
-        // Enable aircraft orbit
+        // Enable aircraft orbit, with a gentle auto-rotate to signal it's draggable
         this.controls.enabled = true;
+        this.controls.autoRotate = true;
 
         // Show CTA — "VIEW ENGINE" in Scene 0 proceeds to the side-angle shot
         const exploreBtn = this.shadowRoot.querySelector('[data-explore]');
@@ -793,6 +857,13 @@ class JetEngineInfographic extends HTMLElement {
           exploreBtn.style.display = 'flex';
           gsap.fromTo(exploreBtn, { opacity: 0 }, { opacity: 1, duration: 0.8, delay: 0.8 });
           setTimeout(() => exploreBtn.classList.add('is-pulsing'), 2000);
+        }
+
+        // Reveal the Scene 0 interaction hint once the aircraft is interactive.
+        const orbitHint = this.shadowRoot.querySelector('[data-orbit-hint]');
+        if (orbitHint && this.currentScene === 0) {
+          orbitHint.style.display = 'block';
+          gsap.fromTo(orbitHint, { opacity: 0 }, { opacity: 0.6, duration: 0.8, delay: 1.0 });
         }
       },
 
@@ -914,8 +985,8 @@ class JetEngineInfographic extends HTMLElement {
     // Particle systems
     tickParticles(this.intakeParticles, this.exhaustParticles);
 
-    // Finale — drift the cloud field past the flying aircraft
-    if (this._finaleActive) tickClouds(this.clouds);
+    // Drift the cloud field (Scene 0 + finale); tickClouds self-guards on visibility
+    tickClouds(this.clouds);
 
     // Only run update() while OrbitControls owns the view (Scenes 0 & 7).
     // When disabled it would still call camera.lookAt(controls.target) and

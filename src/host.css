@@ -411,14 +411,6 @@ body {
   .host-article__body  { margin: 0 -20px 24px; }
 }
 
-.host-article__embed figcaption {
-  margin-top: 16px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--host-muted);
-}
-
 /* ---------- FOOTER ---------- */
 .host-footer {
   display: flex;

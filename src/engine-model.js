@@ -333,8 +333,8 @@ export function buildAircraftBody() {
     root.add(_buildPod2(bodyMat, trimMat, bladeMat, side));
   }
 
-  // ── Runway + environment ─────────────────────────────────────────────────
-  root.add(_buildRunway());
+  // Runway is no longer part of the aircraft body — the component owns a single
+  // world-space runway (shown only for the Scene 8 takeoff). See jet-engine.js.
 
   return root;
 }
@@ -523,8 +523,9 @@ function _buildPodPylon2(mat, side) {
 
 // ── Runway ───────────────────────────────────────────────────────────────────
 
-function _buildRunway() {
+export function buildRunway() {
   const g = new THREE.Group();
+  g.name = 'runway';
 
   // Asphalt surface
   const aspMat = new THREE.MeshStandardMaterial({
