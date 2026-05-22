@@ -182,6 +182,15 @@ function _runIgnitionSequence(component) {
       });
     });
 
+  // Bloom blooms with the fire: spike on the flash, then settle into the sustained
+  // burn so the hot chamber physically glows past its edges.
+  if (component.bloomPass) {
+    gsap.killTweensOf(component.bloomPass);
+    gsap.timeline()
+      .to(component.bloomPass, { strength: 1.25, duration: 0.18, ease: 'power3.out' }, 0)
+      .to(component.bloomPass, { strength: 0.85, duration: 0.9,  ease: 'power2.out' }, 0.18);
+  }
+
   _cameraReveal(component); // jolt, then pull back so the burn is readable
   _exhaustPuff(component);  // one-time blast out the back
 }

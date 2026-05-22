@@ -11,6 +11,10 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import gsap from 'gsap';
 import { buildEngine, buildRunway } from './engine-model.js';
 import { loadAircraftWithFallback } from './model-loader.js';
@@ -257,6 +261,22 @@ const styles = `
     line-height: 1.05;
     letter-spacing: -0.02em;
     margin-bottom: 16px;
+  }
+
+  /* Word-stagger reveal: each word sits in an overflow-clipped box and its inner
+     span slides up into view. The padding/negative-margin pair gives descenders
+     (g, y, p) room so the clip never shaves them. */
+  .headline__title .word {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: top;
+    padding-bottom: 0.12em;
+    margin-bottom: -0.12em;
+  }
+
+  .headline__title .word-inner {
+    display: inline-block;
+    will-change: transform;
   }
 
   .headline__subline {
@@ -607,6 +627,9 @@ const styles = `
   }
 `;
 
+// Scratch vector reused each frame for the parallax-offset lookAt (no per-frame alloc).
+const _lookTmp = new THREE.Vector3();
+
 // ---------- WEB COMPONENT DEFINITION ----------
 class JetEngineInfographic extends HTMLElement {
   constructor() {
@@ -627,6 +650,7 @@ class JetEngineInfographic extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.composer?.dispose();
     this.renderer?.dispose();
     this.resizeObserver?.disconnect();
   }
@@ -715,6 +739,14 @@ class JetEngineInfographic extends HTMLElement {
     this.cameraTarget = new THREE.Vector3(-7.7, 3, -1.2);
     this.camera.lookAt(this.cameraTarget);
 
+    // Cursor parallax — in the scripted scenes (OrbitControls off) the view leans
+    // very slightly toward the cursor, so the engine feels alive even at rest.
+    // Applied as an offset on the lookAt target (never the GSAP-owned position),
+    // so it can't fight the camera tweens or the ignition pull-back.
+    this._parallax       = new THREE.Vector3();
+    this._parallaxTarget = new THREE.Vector3();
+    this._reducedMotion  = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     // Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(width, height);
@@ -722,6 +754,25 @@ class JetEngineInfographic extends HTMLElement {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     host.appendChild(this.renderer.domElement);
+
+    // ---------- POST-PROCESSING: selective bloom ----------
+    // EffectComposer renders the scene into an offscreen buffer, blooms only the
+    // brightest pixels (the ignited combustion chamber, the exhaust plume, runway
+    // lights), then OutputPass re-applies tone mapping + sRGB so the look matches a
+    // direct render. Bloom strength is driven per-scene by setBloom(): it sits at a
+    // subtle base in the cool scenes and is ramped hard on ignition (interactions.js).
+    this.BLOOM_BASE = 0.16;
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.threeScene, this.camera));
+    this.bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(width, height),
+      this.BLOOM_BASE, // strength
+      0.65,            // radius
+      0.72,            // threshold — only bright (hot) pixels bloom past their edges
+    );
+    this.composer.addPass(this.bloomPass);
+    this.composer.addPass(new OutputPass());
+    this.composer.setSize(width, height);
 
     // Scene 0 shares the finale's atmospheric Sky shader, so no solid background
     // here — it's set to a dark Color in Scenes 1–5 and back to null in the finale.
@@ -928,6 +979,8 @@ class JetEngineInfographic extends HTMLElement {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+    this.composer?.setSize(width, height);
+    this.bloomPass?.setSize(width, height);
   }
 
   // ---------- INTERACTIONS ----------
@@ -947,11 +1000,32 @@ class JetEngineInfographic extends HTMLElement {
     this.shadowRoot.querySelector('[data-stage-next]')
       ?.addEventListener('click', () => this.goToScene(this.currentScene + 1));
 
+    // Cursor parallax driver — track the normalized cursor position over the stage;
+    // the animate loop eases the lookAt toward it. Skipped under reduced motion.
+    if (!this._reducedMotion) {
+      const stage = this.shadowRoot.querySelector('.stage');
+      stage?.addEventListener('pointermove', (e) => {
+        const r = stage.getBoundingClientRect();
+        const nx = ((e.clientX - r.left) / r.width  - 0.5) * 2; // -1 … 1
+        const ny = ((e.clientY - r.top)  / r.height - 0.5) * 2; // -1 … 1
+        this._parallaxTarget.set(nx * 0.55, -ny * 0.4, 0);      // world-space lookAt offset
+      });
+      stage?.addEventListener('pointerleave', () => this._parallaxTarget.set(0, 0, 0));
+    }
+
     // Raycaster tooltips from interactions.js
     initTooltips(this);
 
     // Ignition button wiring from interactions.js
     initIgnition(this);
+  }
+
+  // Eased bloom strength change — base in the cool scenes, ramped on combustion.
+  setBloom(strength, dur = 0.6) {
+    if (!this.bloomPass) return;
+    gsap.killTweensOf(this.bloomPass);
+    if (dur > 0) gsap.to(this.bloomPass, { strength, duration: dur, ease: 'power2.out' });
+    else this.bloomPass.strength = strength;
   }
 
   goToScene(idx) {
@@ -977,9 +1051,12 @@ class JetEngineInfographic extends HTMLElement {
       this.engine.rotation.y = 0;
     }
 
-    // Drive camera lookAt from the tweened cameraTarget (not active when OrbitControls is on)
+    // Drive camera lookAt from the tweened cameraTarget (not active when OrbitControls is on).
+    // Ease in the cursor-parallax offset so the view leans gently toward the pointer.
     if (!this.controls.enabled && this.cameraTarget) {
-      this.camera.lookAt(this.cameraTarget);
+      this._parallax.lerp(this._parallaxTarget, 0.06);
+      _lookTmp.copy(this.cameraTarget).add(this._parallax);
+      this.camera.lookAt(_lookTmp);
     }
 
     // Particle systems
@@ -992,7 +1069,11 @@ class JetEngineInfographic extends HTMLElement {
     // When disabled it would still call camera.lookAt(controls.target) and
     // override the tweened cameraTarget, pulling the engine off-centre.
     if (this.controls && this.controls.enabled) this.controls.update();
-    this.renderer?.render(this.threeScene, this.camera);
+
+    // Render through the bloom composer (falls back to a direct render if it
+    // failed to initialise for any reason).
+    if (this.composer) this.composer.render();
+    else this.renderer?.render(this.threeScene, this.camera);
   }
 }
 

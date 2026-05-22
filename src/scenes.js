@@ -12,6 +12,18 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
 
+/**
+ * Wrap each word of `text` in a masked span pair for the headline reveal.
+ * The outer `.word` clips (overflow:hidden in CSS); the inner `.word-inner` is
+ * the part GSAP slides up into view, word by word.
+ */
+function splitWords(text) {
+  return text
+    .split(' ')
+    .map((w) => `<span class="word"><span class="word-inner">${w}</span></span>`)
+    .join(' ');
+}
+
 // Camera preset for each of the 5 scenes.
 // The new model is taller (wing at y≈3.15) so cameras are pulled up and back
 // relative to the original generic-engine build.
@@ -532,6 +544,15 @@ export function transitionScene(component, idx) {
   if (component.intakeParticles)  component.intakeParticles.visible  = idx === 3;
   if (component.exhaustParticles) component.exhaustParticles.visible = idx === 7;
 
+  // ── Bloom strength ─────────────────────────────────────────────────────────────
+  // Cool scenes sit at the subtle base; the thrust plume (Scene 7) gets a lift, and
+  // ignition (interactions.js) drives the combustion blaze while we're on Scene 5.
+  if (typeof component.setBloom === 'function') {
+    if (idx === 7)                            component.setBloom(0.55, dur * 0.6);
+    else if (idx === 5 && component.ignited)  component.setBloom(0.85, 0.6);
+    else                                      component.setBloom(component.BLOOM_BASE, 0.6);
+  }
+
   // ── Combustion reset when leaving Scene 5 ────────────────────────────────────
   if (prevIdx === 5 && idx !== 5 && component.ignited) {
     component.ignited = false;
@@ -642,14 +663,23 @@ export function transitionScene(component, idx) {
   // Incoming — slight delay so outgoing finishes first
   gsap.delayedCall(0.32, () => {
     labelEl.textContent   = sceneData.label;
-    titleEl.textContent   = sceneData.title;
+    titleEl.innerHTML     = splitWords(sceneData.title);
     sublineEl.textContent = sceneData.subline;
     dataEl.innerHTML      = component.renderStats(sceneData.stats);
 
-    gsap.fromTo(titleEl,
-      { opacity: 0, y: 26 },
-      { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out' }
-    );
+    // Title: reset the container (the outgoing tween left it faded/offset) and slide
+    // each word up from behind its mask, staggered, for a choreographed reveal.
+    gsap.set(titleEl, { opacity: 1, y: 0 });
+    const words = titleEl.querySelectorAll('.word-inner');
+    if (component._reducedMotion) {
+      gsap.set(words, { yPercent: 0 });
+    } else {
+      gsap.fromTo(words,
+        { yPercent: 110 },
+        { yPercent: 0, duration: 0.9, stagger: 0.05, ease: 'power3.out' }
+      );
+    }
+
     gsap.fromTo(sublineEl,
       { opacity: 0, y: 18 },
       { opacity: 1, y: 0, duration: 0.8, delay: 0.1, ease: 'power2.out' }
