@@ -304,7 +304,7 @@ body {
   position: absolute;
   bottom: 36px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.28em;
   color: rgba(245, 245, 240, 0.22);
