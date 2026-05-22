@@ -18,8 +18,8 @@ embeddable Web Component.
 
 <br/>
 
-**▶ Live demo** · _Netlify URL added at sign-off_
-&nbsp;&nbsp;|&nbsp;&nbsp;
+### [▶ &nbsp;View the live demo](https://anatomy-of-thrust.netlify.app/)
+
 Built for **Morph Digital** · Front-End Developer Assessment · May 2026
 
 </div>
