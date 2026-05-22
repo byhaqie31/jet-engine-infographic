@@ -122,11 +122,11 @@ body {
   justify-content: center;
   align-items: center;
   overflow: hidden;
-  /* Dark field + very subtle blueprint grid */
+  /* Navy field + very subtle blueprint grid */
   background:
-    linear-gradient(rgba(79, 195, 247, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(79, 195, 247, 0.025) 1px, transparent 1px),
-    radial-gradient(ellipse at 50% 38%, #141722 0%, #0A0B0F 70%);
+    linear-gradient(rgba(79, 195, 247, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 195, 247, 0.03) 1px, transparent 1px),
+    radial-gradient(ellipse at 50% 38%, #16294d 0%, #070c1c 72%);
   background-size: 48px 48px, 48px 48px, 100% 100%;
 }
 
@@ -219,7 +219,8 @@ body {
   z-index: 4;
 }
 
-/* Post-expansion reveal — floats above the expanded aircraft */
+/* Post-expansion reveal — floats above the expanded aircraft.
+   Sized block (not full-width) so Phase 4 can re-anchor it to the left. */
 .hero__reveal {
   position: absolute;
   top: 50%;
@@ -227,7 +228,31 @@ body {
   text-align: center;
   z-index: 5;
   pointer-events: none;
-  width: 100%;
+  width: min(620px, 88vw);
+}
+
+/* Reveal title is smaller than the Phase 1 hero title — cleaner spec-sheet feel */
+.hero__reveal .hero__title {
+  font-size: clamp(40px, 5vw, 84px);
+  line-height: 0.98;
+}
+
+/* Phase 4 — blueprint crop, bleeding off the right edge.
+   Background-div so we can frame the left views; left edge masked into navy. */
+.hero__blueprint {
+  position: absolute;
+  top: 0;
+  right: -4vw;
+  bottom: 0;
+  width: 60vw;
+  z-index: 2;
+  pointer-events: none;
+  background-image: url('/airbus_a350_blueprint.png');
+  background-repeat: no-repeat;
+  background-size: 150%;
+  background-position: 8% 16%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 100%);
+          mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 100%);
 }
 
 /* Bottom metrics */
@@ -320,7 +345,7 @@ body {
   background-position: center top;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  opacity: 0.055;
+  opacity: 0.10;
   pointer-events: none;
   z-index: 0;
 }
@@ -330,51 +355,11 @@ body {
   z-index: 1;
 }
 
-/* ---------- NAV ---------- */
-.host-nav {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 24px 48px;
-  border-bottom: 1px solid var(--host-rule);
-  font-size: 13px;
-}
-
-.host-nav__brand {
-  font-weight: 500;
-  letter-spacing: 0.18em;
-}
-
-.host-nav__links {
-  display: flex;
-  gap: 32px;
-}
-
-.host-nav__links a {
-  color: var(--host-muted);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.host-nav__links a:hover {
-  color: var(--host-ink);
-}
-
 /* ---------- ARTICLE ---------- */
 .host-article {
   max-width: 760px;
   margin: 0 auto;
   padding: 80px 32px 120px;
-}
-
-.host-article__meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--host-muted);
-  margin-bottom: 32px;
 }
 
 .host-article__title {
@@ -383,37 +368,46 @@ body {
   font-size: clamp(40px, 6vw, 72px);
   line-height: 1.05;
   letter-spacing: -0.02em;
-  margin-bottom: 32px;
+  /* Match the embed's full bleed width */
+  margin: 0 -150px 32px;
 }
 
 .host-article__lede {
   font-size: 20px;
   line-height: 1.55;
   color: var(--host-muted);
-  margin-bottom: 64px;
+  /* Match the title / embed full bleed width */
+  margin: 0 -150px 64px;
   font-weight: 400;
 }
 
 .host-article__body {
   font-size: 17px;
   line-height: 1.7;
-  margin-bottom: 24px;
+  /* Match the title / embed full bleed width */
+  margin: 0 -150px 24px;
   color: #2a2a2a;
 }
 
 .host-article__embed {
-  margin: 0 -280px 64px;
+  margin: 0 -150px 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 @media (max-width: 1200px) {
-  .host-article__embed { margin: 0 -120px 64px; }
+  .host-article__embed { margin: 0 -100px 64px; }
+  .host-article__title { margin: 0 -100px 32px; }
+  .host-article__lede  { margin: 0 -100px 64px; }
+  .host-article__body  { margin: 0 -100px 24px; }
 }
 
 @media (max-width: 900px) {
   .host-article__embed { margin: 0 -20px 48px; }
+  .host-article__title { margin: 0 -20px 32px; }
+  .host-article__lede  { margin: 0 -20px 64px; }
+  .host-article__body  { margin: 0 -20px 24px; }
 }
 
 .host-article__embed figcaption {
@@ -438,13 +432,8 @@ body {
 
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 768px) {
-  .host-nav,
   .host-footer {
     padding: 20px 24px;
-  }
-
-  .host-nav__links {
-    gap: 20px;
   }
 
   .host-article {

@@ -18,9 +18,9 @@ import {
   buildIntakeParticles,
   buildExhaustParticles,
   tickParticles,
-  initWheelNavigation,
   transitionScene,
 } from './scenes.js';
+import { buildSky, buildClouds, tickClouds } from './sky.js';
 import { initTooltips, initIgnition } from './interactions.js';
 
 // ---------- SCENE CONTENT ----------
@@ -115,6 +115,17 @@ const SCENES = [
       { label: 'Bypass ratio',  value: '9.3',    raw: 9.3,   unit: ':1' },
     ],
     accent: '#FFB07A',
+  },
+  {
+    id: 'departure',
+    label: '· Departure',
+    title: 'And it flies.',
+    subline: 'A quarter-million parts, two of these engines, one impossible act — lifting 300 tonnes into the sky and holding it there for nine thousand miles.',
+    stats: [
+      { label: 'Cruise speed',    value: '945',    raw: 945,   unit: 'km/h' },
+      { label: 'Cruise altitude', value: '13,100', raw: 13100, unit: 'm' },
+    ],
+    accent: '#4FC3F7',
   },
 ];
 
@@ -292,41 +303,6 @@ const styles = `
     margin-left: 4px;
   }
 
-  /* ---------- SCENE DOTS ---------- */
-  .dots {
-    position: absolute;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    z-index: 10;
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: rgba(10, 11, 15, 0.8);
-    border: 1px solid var(--color-hairline);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
-
-  .dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    cursor: pointer;
-    transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    border: none;
-    padding: 0;
-  }
-
-  .dot.is-active {
-    background: var(--ink);
-    transform: scale(1.5);
-  }
-
-  .dot:hover:not(.is-active) { background: var(--color-ink-secondary); }
-
   /* ---------- TOOLTIP ---------- */
   .tooltip {
     position: absolute;
@@ -369,7 +345,7 @@ const styles = `
   /* ---------- EXPLORE / VIEW ENGINE BUTTON (solid dark) ---------- */
   .explore-btn {
     position: absolute;
-    bottom: 20%;
+    bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
     background: var(--color-bg-base);
@@ -415,6 +391,62 @@ const styles = `
 
   .explore-btn.is-pulsing { animation: explorePulse 2.4s var(--ease-out) infinite; }
 
+  /* ---------- STAGE NAV (click-through for scenes 3–7) ---------- */
+  .stage-nav {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 24px;
+    display: none;            /* toggled to flex in scenes 3–7 */
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    z-index: 12;
+    pointer-events: none;     /* only the buttons are interactive */
+  }
+
+  .stage-nav__btn {
+    pointer-events: auto;
+    background: rgba(10, 11, 15, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: var(--color-ink-primary);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 11px 22px;
+    border-radius: var(--radius-sharp);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: background var(--duration-quick, 0.3s) var(--ease-precise),
+                border-color var(--duration-quick, 0.3s) var(--ease-precise),
+                color var(--duration-quick, 0.3s) var(--ease-precise);
+  }
+
+  .stage-nav__btn:hover {
+    background: var(--color-ink-primary);
+    color: var(--color-bg-base);
+    border-color: var(--color-ink-primary);
+  }
+
+  .stage-nav__btn--primary {
+    background: var(--color-ink-primary);
+    color: var(--color-bg-base);
+    border-color: var(--color-ink-primary);
+  }
+
+  .stage-nav__btn--primary:hover { box-shadow: 0 0 20px rgba(245, 245, 240, 0.25); }
+
+  .stage-nav__btn:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 3px;
+  }
+
   /* ---------- IGNITE BUTTON (primary style) ---------- */
   .ignite-btn {
     position: absolute;
@@ -455,6 +487,41 @@ const styles = `
     outline-offset: 3px;
   }
 
+  /* Attention pulse — hot ring radiating from the button until it's clicked */
+  @keyframes ignitePulse {
+    0%   { box-shadow: 0 0 0 0px  rgba(255, 107, 53, 0.55); }
+    70%  { box-shadow: 0 0 0 16px rgba(255, 107, 53, 0);    }
+    100% { box-shadow: 0 0 0 0px  rgba(255, 107, 53, 0);    }
+  }
+
+  .ignite-btn.is-hinting { animation: ignitePulse 2s var(--ease-out) infinite; }
+
+  /* "Tap to ignite" caption sitting just under the IGNITE button */
+  .ignite-hint {
+    position: absolute;
+    top: calc(38% + 32px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-ink-secondary);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+    z-index: 15;
+    display: none;
+    opacity: 0.7;  /* base; the blink animation modulates this when shown */
+    white-space: nowrap;
+    pointer-events: none;
+    animation: igniteHintBlink 2.2s var(--ease-in-out) infinite;
+  }
+
+  @keyframes igniteHintBlink {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 0.95; }
+  }
+
   /* ---------- LOADING ---------- */
   .loading {
     position: absolute;
@@ -489,7 +556,7 @@ const styles = `
     .data { gap: 24px; }
     .data__value { font-size: 15px; }
     .ignite-btn { font-size: 10px; padding: 11px 24px; }
-    .explore-btn { font-size: 10px; padding: 11px 20px; bottom: 20%; }
+    .explore-btn { font-size: 10px; padding: 11px 20px; bottom: 18px; }
   }
 
   /* ---------- FOCUS & ACCESSIBILITY ---------- */
@@ -522,6 +589,8 @@ class JetEngineInfographic extends HTMLElement {
     this.initThree();
     this.initInteractions();
     this.animate();
+    // Scene 0 is an orbit scene — let the wheel zoom the canvas, not scroll the page
+    this.setAttribute('data-lenis-prevent', '');
   }
 
   disconnectedCallback() {
@@ -556,12 +625,10 @@ class JetEngineInfographic extends HTMLElement {
         <div class="canvas-host"></div>
         <button class="explore-btn" data-explore>&#x2192;&nbsp;&nbsp;VIEW ENGINE</button>
 
-        <div class="dots" data-dots>
-          ${this.scenes
-            .map((s, i) =>
-              `<button class="dot ${i === 0 ? 'is-active' : ''}" data-dot="${i}" aria-label="Go to scene ${i + 1}"></button>`
-            )
-            .join('')}
+        <!-- Click-through nav for the thrust stages (scenes 3–7) -->
+        <div class="stage-nav" data-stage-nav>
+          <button class="stage-nav__btn" data-stage-prev>&#x2039;&nbsp;&nbsp;Back</button>
+          <button class="stage-nav__btn stage-nav__btn--primary" data-stage-next>Next stage&nbsp;&nbsp;&#x203A;</button>
         </div>
 
         <div class="tooltip" data-tooltip>
@@ -572,6 +639,7 @@ class JetEngineInfographic extends HTMLElement {
         <button class="ignite-btn" data-ignite aria-label="Ignite engine">
           ⚡&nbsp;IGNITE
         </button>
+        <div class="ignite-hint" data-ignite-hint>Tap to ignite the chamber</div>
 
         <div class="loading" data-loading>Initialising · Three.js</div>
       </div>
@@ -658,13 +726,25 @@ class JetEngineInfographic extends HTMLElement {
     this.threeScene.add(this.intakeParticles);
     this.threeScene.add(this.exhaustParticles);
 
+    // Finale environment — atmospheric sky + drifting clouds, hidden until Scene 8
+    this.sky = buildSky();
+    this.clouds = buildClouds();
+    this.threeScene.add(this.sky);
+    this.threeScene.add(this.clouds);
+    this._finaleActive = false;
+
     // Orbit controls — starts targeting the aircraft body; switches to engine in Scene 6.
     // Kept disabled until _loadAircraft fires so the user can't orbit an empty scene.
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.enablePan     = false;
+    // Wheel-zoom only in the orbit scenes (0 + finale); transitionScene toggles it
+    // per scene, and pairs it with data-lenis-prevent so the wheel zooms the canvas
+    // there but scrolls the host page everywhere else.
+    this.controls.enableZoom    = true;
     this.controls.enabled       = false;
+    this.controls.autoRotateSpeed = 0.6; // used only in the finale (Scene 8)
     this.controls.target.set(-7.7, 3, -1.2);
     this.controls.minDistance   = 14;
     this.controls.maxDistance   = 55;
@@ -781,24 +861,20 @@ class JetEngineInfographic extends HTMLElement {
 
   // ---------- INTERACTIONS ----------
   initInteractions() {
-    // Scene dots — click to jump
-    this.shadowRoot.querySelectorAll('[data-dot]').forEach((dot) => {
-      dot.addEventListener('click', (e) => {
-        this.goToScene(parseInt(e.target.dataset.dot, 10));
-      });
-    });
-
-    // CTA button: Scene 0 → 1 (side angle), Scene 1 → 2 (engine anatomy)
+    // CTA button: steps the aircraft scenes (0→1→2→3) and replays from the finale
     const exploreBtn = this.shadowRoot.querySelector('[data-explore]');
     if (exploreBtn) {
       exploreBtn.addEventListener('click', () => {
-        if (this.currentScene === 0) this.goToScene(1);
-        else if (this.currentScene === 1) this.goToScene(2);
+        if (this.currentScene <= 2) this.goToScene(this.currentScene + 1);
+        else if (this.currentScene === 8) this.goToScene(0); // replay
       });
     }
 
-    // Wheel / touch / keyboard navigation from scenes.js
-    initWheelNavigation(this);
+    // Click-through stage nav (scenes 3–7). Next on Scene 7 leads to the finale.
+    this.shadowRoot.querySelector('[data-stage-prev]')
+      ?.addEventListener('click', () => this.goToScene(this.currentScene - 1));
+    this.shadowRoot.querySelector('[data-stage-next]')
+      ?.addEventListener('click', () => this.goToScene(this.currentScene + 1));
 
     // Raycaster tooltips from interactions.js
     initTooltips(this);
@@ -837,6 +913,9 @@ class JetEngineInfographic extends HTMLElement {
 
     // Particle systems
     tickParticles(this.intakeParticles, this.exhaustParticles);
+
+    // Finale — drift the cloud field past the flying aircraft
+    if (this._finaleActive) tickClouds(this.clouds);
 
     // Only run update() while OrbitControls owns the view (Scenes 0 & 7).
     // When disabled it would still call camera.lookAt(controls.target) and
