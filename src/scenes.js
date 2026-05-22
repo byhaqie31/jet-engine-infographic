@@ -359,6 +359,14 @@ function playTakeoff(component) {
   const DX = 14, LIFT = 6, BACK = 22;   // forward distance · climb height · how far back it starts
   const ROLL_DUR = 6.6;                 // long ground roll — "gathering thrust" before rotation
   const CRUISE_HOLD = 2.6;              // seconds to dwell at cruise before looping back to Scene 0
+
+  // Rotation + airspeed tuning. The nose rotates slowly over ROT_DUR with a sine
+  // ease (≈ a real ~2.5–3°/s rotation) instead of snapping up. Speeds are knots.
+  const ROT_DUR      = 3.4;             // seconds for the nose to rotate up — slow + smooth
+  const CLIMB_PITCH  = 0.16;            // ≈ 9° peak nose-up just after rotation
+  const CRUISE_PITCH = 0.05;            // relaxed climb-out attitude the cruise loop inherits
+  const ROTATE_KTS   = 165;             // Vr — airspeed at rotation
+  const CLIMB_KTS    = 295;             // airspeed once established in the climb
   const groundY = base.pos.y;
   const centerOffset = _TAKEOFF_CENTER.clone().sub(base.pos); // jet centre = body.position + this
 
@@ -385,6 +393,20 @@ function playTakeoff(component) {
 
   const pitch = { v: 0 };
   const fade  = { o: 1 };
+  const speed = { v: 0 };
+
+  // Airspeed HUD — counts knots up through the roll, rotation and climb-out.
+  const hud      = component.shadowRoot?.querySelector('[data-takeoff-hud]');
+  const hudSpeed = component.shadowRoot?.querySelector('[data-hud-speed]');
+  const hudPhase = component.shadowRoot?.querySelector('[data-hud-phase]');
+  if (hud) {
+    if (hudSpeed) hudSpeed.textContent = '0';
+    if (hudPhase) hudPhase.textContent = 'TAKEOFF ROLL';
+    hud.classList.add('is-visible');
+  }
+  let _phase = 'TAKEOFF ROLL';
+  const setPhase = (p) => { if (p !== _phase && hudPhase) { _phase = p; hudPhase.textContent = p; } };
+
   if (component._flyTween) component._flyTween.kill();
   component._flyTween = gsap.timeline({
     onUpdate() {
@@ -393,6 +415,12 @@ function playTakeoff(component) {
       _camOff.lerpVectors(_lowCam, _heroCam, climbT);
       component.camera.position.copy(_center).add(_camOff);
       component.cameraTarget.copy(_center);
+
+      // Airspeed readout + flight phase, derived from the speed tween and altitude.
+      if (hudSpeed) hudSpeed.textContent = Math.round(speed.v).toString();
+      if      (body.position.y > groundY + 0.05) setPhase('CLIMB');
+      else if (speed.v >= ROTATE_KTS)            setPhase('ROTATE');
+      else                                       setPhase('TAKEOFF ROLL');
     },
     onComplete() {
       // Don't zero the pitch here — that caused the nose to snap level the instant
@@ -416,13 +444,15 @@ function playTakeoff(component) {
     },
   })
     .to(body.position, { x: base.pos.x - 2, duration: ROLL_DUR, ease: 'power1.in' }, 0)        // roll — accelerate down the runway
-    .to(pitch, { v: 0.17, duration: 0.8, ease: 'power2.out',
-        onUpdate: () => setAircraftPitch(component, pitch.v) }, ROLL_DUR - 0.5)                 // rotate (nose up) near Vr
-    .to(body.position, { x: base.pos.x + DX, y: groundY + LIFT, duration: 3.4, ease: 'power2.out' }, ROLL_DUR) // lift off + climb
-    .to(pitch, { v: 0.05, duration: 2.6, ease: 'power1.inOut',
-        onUpdate: () => setAircraftPitch(component, pitch.v) }, ROLL_DUR + 1.0)                 // settle to cruise angle
-    .to(fade, { o: 0, duration: 2.6, ease: 'power1.inOut',
-        onUpdate: () => setRunwayOpacity(component, fade.o) }, ROLL_DUR + 0.4);                 // fade runway as it climbs away
+    .to(speed, { v: ROTATE_KTS, duration: ROLL_DUR, ease: 'power1.in' }, 0)                     // airspeed builds from a standstill to Vr
+    .to(pitch, { v: CLIMB_PITCH, duration: ROT_DUR, ease: 'sine.inOut',
+        onUpdate: () => setAircraftPitch(component, pitch.v) }, ROLL_DUR - 1.2)                 // rotate — nose rises slowly & smoothly from just before Vr
+    .to(body.position, { x: base.pos.x + DX, y: groundY + LIFT, duration: 4.2, ease: 'power1.out' }, ROLL_DUR) // lift off + climb
+    .to(speed, { v: CLIMB_KTS, duration: 4.2, ease: 'power1.out' }, ROLL_DUR)                   // accelerate in the climb-out
+    .to(pitch, { v: CRUISE_PITCH, duration: 3.4, ease: 'sine.inOut',
+        onUpdate: () => setAircraftPitch(component, pitch.v) }, ROLL_DUR + ROT_DUR - 0.4)       // settle the nose to a relaxed cruise angle
+    .to(fade, { o: 0, duration: 3.0, ease: 'power1.inOut',
+        onUpdate: () => setRunwayOpacity(component, fade.o) }, ROLL_DUR + 0.6);                 // fade runway as it climbs away
 }
 
 // ─── SCENE TRANSITION ─────────────────────────────────────────────────────────
@@ -451,6 +481,7 @@ export function transitionScene(component, idx) {
     component.controls.autoRotate = false;
     if (component._flyTween) { component._flyTween.kill(); component._flyTween = null; }
     if (component._cruiseReturnCall) { component._cruiseReturnCall.kill(); component._cruiseReturnCall = null; }
+    component.shadowRoot?.querySelector('[data-takeoff-hud]')?.classList.remove('is-visible'); // hide airspeed HUD
     setAircraftPitch(component, 0); // undo any takeoff/cruise tilt
   }
 

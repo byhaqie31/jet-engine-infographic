@@ -661,6 +661,69 @@ const styles = `
     white-space: nowrap;
   }
 
+  /* Takeoff airspeed HUD — bottom-left glass panel shown only during the finale.
+     playTakeoff() toggles .is-visible and drives the value/phase text. */
+  .takeoff-hud {
+    position: absolute;
+    left: 20px;
+    bottom: 20px;
+    z-index: 16;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 16px;
+    background: rgba(10, 11, 15, 0.5);
+    border: 1px solid var(--color-hairline);
+    border-left: 2px solid var(--color-accent, #0071E3);
+    border-radius: var(--radius-sharp);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+
+  .takeoff-hud.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .takeoff-hud__phase {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-accent, #4fc3f7);
+  }
+
+  .takeoff-hud__readout {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .takeoff-hud__value {
+    font-family: var(--font-mono);
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    min-width: 3ch;
+    text-align: right;
+  }
+
+  .takeoff-hud__unit {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink-secondary);
+  }
+
   /* ---------- LOADING ---------- */
   .loading {
     position: absolute;
@@ -845,6 +908,15 @@ class JetEngineInfographic extends HTMLElement {
           ⚡&nbsp;IGNITE
         </button>
         <div class="ignite-hint" data-ignite-hint>Tap to ignite the chamber</div>
+
+        <!-- Takeoff airspeed HUD — revealed by playTakeoff() during the finale -->
+        <div class="takeoff-hud" data-takeoff-hud aria-hidden="true">
+          <div class="takeoff-hud__phase" data-hud-phase>TAKEOFF ROLL</div>
+          <div class="takeoff-hud__readout">
+            <span class="takeoff-hud__value" data-hud-speed>0</span>
+            <span class="takeoff-hud__unit">kts</span>
+          </div>
+        </div>
 
         <div class="loading" data-loading>Initialising · Three.js</div>
       </div>

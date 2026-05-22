@@ -448,6 +448,22 @@ body {
   color: var(--host-muted);
 }
 
+/* Footer credit links — quiet until hovered, then brand blue with an underline. */
+.host-footer__link {
+  color: var(--host-ink);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.host-footer__link:hover,
+.host-footer__link:focus-visible {
+  color: #0071E3;                 /* AXEL NOVA brand blue */
+  border-bottom-color: currentColor;
+  outline: none;
+}
+
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 768px) {
   .host-footer {
