@@ -516,6 +516,13 @@ way; don't add stock photos or decorative illustrations into the interactive.
 - `A350.png` — the flyby plane that enters, expands, and dissolves into the title
 - `airbus_a350_blueprint.png` — the schematic that slides in during the hero's final phase
 
+**In the host editorial sections (host page only):** the scroll-driven sections use a
+small set of full-bleed aviation/industrial images:
+- `chapter-1.png` · `chapter-2.png` · `chapter-3.png` — the sticky-chapter media (aircraft
+  in flight → engine cutaway → test rig), cross-faded as each chapter reaches viewport centre
+- `quote-bg.png` — the pull-quote background, shown at low opacity with a grayscale +
+  contrast filter and a subtle parallax scrub
+
 These are deliberate, single-purpose, and aviation-subject — consistent with the editorial
 tone. Any further host imagery should follow the same rules: aviation/industrial subject,
 editorial composition (rule of thirds, negative space), no generic stock.

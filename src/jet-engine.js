@@ -597,19 +597,46 @@ const styles = `
   @media (max-width: 768px) {
     .scene-info { padding: 16px 20px 14px; }
     .info-topbar { margin-bottom: 12px; }
+    .topbar__progress { width: 88px; }
     .headline { margin-bottom: 12px; }
     .stage { aspect-ratio: 375 / 560; max-height: 560px; }
     .headline__title { font-size: 24px; }
     .headline__subline { font-size: 13px; }
     .data { gap: 24px; }
     .data__value { font-size: 15px; }
-    .ignite-btn { font-size: 10px; padding: 11px 24px; }
-    .explore-btn { font-size: 10px; padding: 11px 20px; bottom: 18px; }
+
+    /* Touch targets: every on-canvas control clears the 44px minimum.
+       min-height does the work so the labels can stay compact. */
+    .ignite-btn {
+      font-size: 10px; padding: 12px 24px; min-height: 44px;
+      justify-content: center;
+    }
+    .explore-btn {
+      font-size: 10px; padding: 12px 22px; min-height: 44px;
+      justify-content: center; bottom: 16px;
+    }
+    .stage-nav { bottom: 16px; padding: 0 16px; }
+    .stage-nav__btn {
+      font-size: 10px; letter-spacing: 0.14em;
+      padding: 12px 18px; min-height: 44px;
+    }
+
     .orbit-hint {
       top: 12px;
       font-size: 9px; letter-spacing: 0.1em; padding: 7px 12px;
       white-space: normal; max-width: 80%; line-height: 1.5;
     }
+  }
+
+  /* Narrow phones — keep the two-up data row from crowding and let the
+     scene nav buttons shrink before they ever touch. */
+  @media (max-width: 420px) {
+    .scene-info { padding: 14px 16px 12px; }
+    .data { gap: 16px; }
+    .data__value { font-size: 14px; }
+    .data__label { font-size: 9px; letter-spacing: 0.16em; }
+    .stage-nav { padding: 0 12px; }
+    .stage-nav__btn { padding: 12px 14px; letter-spacing: 0.1em; }
   }
 
   /* ---------- FOCUS & ACCESSIBILITY ---------- */

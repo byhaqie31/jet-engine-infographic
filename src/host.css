@@ -118,6 +118,7 @@ body {
 .hero {
   position: relative;
   height: 100vh;
+  height: 100dvh;   /* dynamic vh — avoids cropping under the mobile URL bar (falls back to vh) */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -397,6 +398,27 @@ body {
   align-items: center;
 }
 
+/* Small footer/caption attached under the 3D component — a quiet, narrow note
+   rather than full body prose. Constrained + centred beneath the (wider) embed. */
+.embed-footer {
+  width: 100%;
+  max-width: 640px;
+  margin: var(--space-6) auto 0;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--host-rule);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.embed-footer p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--host-muted);
+}
+
 @media (max-width: 1200px) {
   .host-article__embed { margin: 0 -100px 64px; }
   .host-article__title { margin: 0 -100px 32px; }
@@ -427,15 +449,25 @@ body {
 @media (max-width: 768px) {
   .host-footer {
     padding: 20px 24px;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    font-size: 11px;
   }
 
   .host-article {
     padding: 48px 20px 80px;
   }
 
-  .host-article__embed {
-    margin: 0 -20px 48px;
-  }
+  /* The embed keeps a small gutter (its rounded card shouldn't kiss the screen
+     edge); body copy sits inside the padding for a comfortable reading gutter
+     instead of inheriting the desktop full-bleed negative margins. */
+  .host-article__embed { margin: 0 0 48px; }
+  .host-article__title { margin: 0 0 28px; }
+  .host-article__lede  { margin: 0 0 48px; font-size: 18px; }
+  .host-article__body  { margin: 0 0 20px; }
+
+  /* iOS Safari janks on background-attachment: fixed — pin it to scroll here. */
+  .article-wrapper::before { background-attachment: scroll; }
 
   .hero__bracket { width: 24px; height: 24px; }
   .hero__bracket--tl { top: 24px; left: 24px; }
@@ -443,7 +475,42 @@ body {
   .hero__bracket--bl { bottom: 24px; left: 24px; }
   .hero__bracket--br { bottom: 24px; right: 24px; }
 
-  .hero__strip { gap: 12px; font-size: 9px; }
+  .hero__center { padding: 0 20px; }
+  .hero__title { font-size: clamp(44px, 13vw, 72px); }
+  .hero__sub { font-size: 15px; }
+
+  /* A350 reveal (hero "phase 2"): on mobile the desktop side-by-side
+     (title-left / blueprint-cropped-right) doesn't fit. Instead the title sits
+     centred near the top and the FULL blueprint sits below it. host-animations.js
+     skips the leftward slide on mobile and rises the blueprint up instead. */
+  .hero__reveal {
+    top: 22%;
+    width: min(560px, 90vw);
+    padding: 0 20px;
+  }
+  .hero__reveal .hero__title { font-size: clamp(34px, 9vw, 56px); }
+  /* The A350 spec subline (Wingspan · Range · MTOW) is long — scale it with the
+     viewport so it holds one line instead of wrapping/truncating on phones. */
+  .hero__reveal .hero__sub { font-size: clamp(11px, 3.2vw, 13px); }
+
+  .hero__blueprint {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 6%;
+    width: 100%;
+    height: 50%;
+    background-size: contain;          /* show the whole aircraft, not a right-edge crop */
+    background-position: center;
+    /* Fade the top edge so the blueprint melts in beneath the title */
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 100%);
+            mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 100%);
+  }
+
+  /* Collapse the secondary flight-strip metrics so the line never overflows */
+  .hero__strip { gap: 12px; font-size: 9px; padding: 0 16px; }
+  .hero__strip-opt { display: none; }
+
   .hero__metrics { gap: 20px; bottom: 72px; }
   .hero__metric-val { font-size: 14px; }
 }
@@ -582,11 +649,102 @@ body {
   max-width: 480px;
 }
 
-/* Mobile: stack, drop the sticky, images appear inline */
+/* Per-card image + progress dots belong to the mobile swipe carousel only;
+   the desktop layout uses the shared sticky media instead. */
+.chapter__img { display: none; }
+.chapters__dots { display: none; }
+
+/* Mobile: a horizontal swipe carousel. The shared sticky media is dropped and
+   each chapter becomes a snap-aligned card carrying its own image, so the
+   image actually changes as you move between chapters (the desktop sticky
+   cross-fade can't survive the single-column stack). CSS scroll-snap does the
+   sliding — no scroll-hijacking, no Lenis conflict. */
 @media (max-width: 900px) {
-  .chapters__inner { grid-template-columns: 1fr; gap: var(--space-8); }
-  .chapters__media { position: relative; top: 0; height: 50vh; }
-  .chapters__content { gap: var(--space-12); }
+  .chapters {
+    margin: var(--space-20) auto;
+    padding: 0;                            /* the scroller manages its own edge insets */
+  }
+  .chapters__inner { display: block; }
+  .chapters__media { display: none; }      /* replaced by per-card images */
+
+  .chapters__content {
+    display: flex;
+    flex-direction: row;
+    gap: var(--space-4);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;        /* don't trigger browser back-swipe */
+    padding: 0 var(--space-5) var(--space-2);
+    scrollbar-width: none;                  /* Firefox — hide the bar, dots are the cue */
+  }
+  .chapters__content::-webkit-scrollbar { display: none; }  /* WebKit */
+
+  .chapter {
+    flex: 0 0 86%;                          /* leaves a sliver of the next card as a swipe hint */
+    scroll-snap-align: center;
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chapter__img {
+    display: block;
+    width: 100%;
+    height: 38vh;
+    object-fit: cover;
+    border-radius: var(--radius-card);
+    margin-bottom: var(--space-5);
+    background: var(--host-ink);            /* placeholder tone before the image paints */
+  }
+
+  .chapter__body { max-width: none; }
+
+  /* ---- numbered progress indicators (1 · 2 · 3) ---- */
+  .chapters__dots {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+  }
+  .chapters__dot {
+    width: 44px;                            /* 44px touch target */
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    position: relative;
+    display: grid;
+    place-items: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--host-muted);
+    transition: color var(--duration-quick) var(--ease-precise);
+  }
+  /* Active number gets ink + a short underline rule that wipes in */
+  .chapters__dot::after {
+    content: '';
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    width: 18px;
+    height: 2px;
+    background: var(--host-ink);
+    transform: translateX(-50%) scaleX(0);
+    transform-origin: center;
+    transition: transform var(--duration-quick) var(--ease-precise);
+  }
+  .chapters__dot.is-active { color: var(--host-ink); }
+  .chapters__dot.is-active::after { transform: translateX(-50%) scaleX(1); }
+  .chapters__dot:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: -8px;
+    border-radius: var(--radius-card);
+  }
 }
 
 /* ---------- SECTION C — Pull quote with parallax ---------- */
@@ -663,5 +821,13 @@ body {
 }
 
 @media (max-width: 768px) {
-  .quote-block { min-height: 60vh; padding: var(--space-20) var(--space-4); }
+  .quote-block {
+    margin: var(--space-20) 0;
+    min-height: 60vh;
+    padding: var(--space-20) var(--space-5);
+  }
+  /* Drop the inner padding so the quote uses the section gutter alone,
+     rather than stacking two gutters and squeezing the line length. */
+  .quote-block__quote { padding: 0; }
+  .quote-block__text { margin-bottom: var(--space-6); }
 }

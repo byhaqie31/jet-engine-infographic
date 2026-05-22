@@ -360,24 +360,28 @@ The image stays sticky-pinned to viewport center while right column scrolls natu
   max-width: 480px;
 }
 
-/* Mobile: stack, no sticky */
-@media (max-width: 900px) {
-  .chapters__inner {
-    grid-template-columns: 1fr;
-    gap: var(--space-8);
-  }
-
-  .chapters__media {
-    position: relative;
-    top: 0;
-    height: 50vh;
-  }
-
-  .chapters__content {
-    gap: var(--space-12);
-  }
-}
+/* Mobile (≤900px): a horizontal swipe carousel — see "Mobile behaviour" below.
+   The shared sticky media is dropped; each .chapter becomes a snap-aligned card
+   carrying its own .chapter__img, and a .chapters__dots row tracks position.
+   (Full implementation in src/host.css.) */
 ```
+
+### Mobile behaviour (≤900px) — swipe carousel
+
+The desktop sticky cross-fade can't survive a single-column stack (the pinned media
+just scrolls away above the text), so on mobile Section B switches to a **horizontal
+swipe carousel** instead of stacking:
+
+- `.chapters__media` (the shared sticky frame) is hidden; each `.chapter` instead
+  renders its **own** `.chapter__img` (hidden on desktop) so the image changes per card.
+- `.chapters__content` becomes a horizontal `scroll-snap-type: x mandatory` flex row;
+  each `.chapter` is `flex: 0 0 86%` with `scroll-snap-align: center` (the 86% leaves a
+  sliver of the next card as a swipe affordance). Native scroll-snap does the sliding —
+  no scroll-hijacking, no Lenis conflict.
+- A `.chapters__dots` row (3 dots, hidden on desktop) shows position. An
+  `IntersectionObserver` (root = the scroller) highlights the centred card's dot;
+  tapping a dot scrolls its card to centre. Dots use a 44px touch target.
+- Reduced motion: dot-driven scrolling falls back to `behavior: 'auto'`.
 
 ### Animation Logic
 
@@ -419,10 +423,11 @@ Place in `/public`:
 with the engine's color palette. The structure works regardless.
 
 ### Acceptance criteria
-- [ ] Image pins to viewport while right-side text scrolls past
-- [ ] Image smoothly cross-fades between chapters (no flash)
+- [ ] Image pins to viewport while right-side text scrolls past (desktop)
+- [ ] Image smoothly cross-fades between chapters (no flash) (desktop)
 - [ ] Active chapter's label/title is visible when its image is shown
-- [ ] On mobile (<900px), layout stacks vertically, sticky disabled, images appear inline
+- [ ] On mobile (≤900px), the section becomes a horizontal swipe carousel: one
+      image per card, snap-aligned, with working progress dots (tap + active state)
 - [ ] No scroll jank — verify with Chrome DevTools rendering tab
 - [ ] Reduced-motion: image still swaps but with instant transition
 

@@ -36,15 +36,15 @@
       <div class="hero__bracket hero__bracket--bl"></div>
       <div class="hero__bracket hero__bracket--br"></div>
 
-      <!-- Top flight-data strip -->
+      <!-- Top flight-data strip ('opt' items collapse on narrow phones) -->
       <div class="hero__strip">
         <span>RR · Trent XWB-97</span>
-        <span class="hero__dot">·</span>
-        <span>Bypass 9.3 : 1</span>
+        <span class="hero__dot hero__strip-opt">·</span>
+        <span class="hero__strip-opt">Bypass 9.3 : 1</span>
         <span class="hero__dot">·</span>
         <span>A350-1000</span>
-        <span class="hero__dot">·</span>
-        <span>Eng 01 / 02</span>
+        <span class="hero__dot hero__strip-opt">·</span>
+        <span class="hero__strip-opt">Eng 01 / 02</span>
       </div>
 
       <!-- A350 flyby plane — sits above the first title (z-4) so it can engulf it -->
@@ -52,7 +52,6 @@
 
       <!-- Phase 1 content — gets swallowed by the expanding aircraft -->
       <div class="hero__center">
-        <p class="hero__eyebrow">Issue 04 · Engineering · Axel Nova Dispatch</p>
         <h1 class="hero__title">Anatomy<br>of Thrust</h1>
         <hr class="hero__rule" />
         <p class="hero__sub">97,000 pounds of force. Five scenes. One machine.</p>
@@ -128,6 +127,10 @@
 
         <div class="chapters__content">
           <article class="chapter" data-chapter="0">
+            <!-- Per-card image — shown only in the mobile swipe carousel
+                 (hidden on desktop, where the shared sticky media is used). -->
+            <img class="chapter__img" src="/chapter-1.png"
+                 alt="A350-1000 silhouette in flight" loading="lazy" decoding="async" />
             <div class="chapter__label">Chapter 01 · The Aircraft</div>
             <h2 class="chapter__title">A system of compromises.</h2>
             <p class="chapter__body">
@@ -139,6 +142,8 @@
           </article>
 
           <article class="chapter" data-chapter="1">
+            <img class="chapter__img" src="/chapter-2.png"
+                 alt="Trent XWB-97 engine cutaway" loading="lazy" decoding="async" />
             <div class="chapter__label">Chapter 02 · The Engine</div>
             <h2 class="chapter__title">But the engine is its own miracle.</h2>
             <p class="chapter__body">
@@ -150,6 +155,8 @@
           </article>
 
           <article class="chapter" data-chapter="2">
+            <img class="chapter__img" src="/chapter-3.png"
+                 alt="Engine test rig under load" loading="lazy" decoding="async" />
             <div class="chapter__label">Chapter 03 · The Trial</div>
             <h2 class="chapter__title">Eleven million pounds of testing.</h2>
             <p class="chapter__body">
@@ -160,6 +167,13 @@
             </p>
           </article>
         </div>
+      </div>
+
+      <!-- Mobile carousel progress indicators — numbered (hidden on desktop via CSS) -->
+      <div class="chapters__dots" role="tablist" aria-label="Chapter navigation">
+        <button class="chapters__dot is-active" type="button" data-dot="0" aria-label="Show chapter 1">1</button>
+        <button class="chapters__dot" type="button" data-dot="1" aria-label="Show chapter 2">2</button>
+        <button class="chapters__dot" type="button" data-dot="2" aria-label="Show chapter 3">3</button>
       </div>
     </section>
 
@@ -189,20 +203,22 @@
       <!-- THE EMBEDDED INTERACTIVE ASSET -->
       <figure class="host-article__embed">
         <jet-engine-infographic></jet-engine-infographic>
+
+        <!-- Small footer/caption for the 3D section -->
+        <figcaption class="embed-footer">
+          <p>
+            Everything you just saw — the intake, the compression, the controlled
+            explosion — happens roughly one hundred times per second inside the
+            engines of the aircraft above you right now. It is the most refined
+            choreography in industrial design.
+          </p>
+          <p>
+            The component embedded above is a self-contained Web Component. It can
+            be dropped into any HTML document with a single tag, regardless of the
+            host framework.
+          </p>
+        </figcaption>
       </figure>
-
-      <p class="host-article__body">
-        Everything you just saw — the intake, the compression, the controlled
-        explosion — happens roughly one hundred times per second inside the
-        engines of the aircraft above you right now. It is the most refined
-        choreography in industrial design.
-      </p>
-
-      <p class="host-article__body">
-        The component embedded above is a self-contained Web Component. It can
-        be dropped into any HTML document with a single tag, regardless of the
-        host framework.
-      </p>
     </main>
 
     <!-- ═══ SECTION C — Pull quote with parallax (full-bleed dark moment) ═══ -->

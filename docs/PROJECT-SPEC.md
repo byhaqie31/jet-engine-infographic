@@ -70,8 +70,9 @@ HTML5 + Vanilla JS (ES Modules)
 ├── Three.js
 │   ├── GLTFLoader + DRACOLoader → Airbus A350 GLB (public/a350.glb)
 │   ├── primitives                → Trent XWB-97 engine (engine-model.js)
-│   └── Sky shader + sprites      → departure finale (sky.js)
-├── GSAP + ScrollTrigger          → camera, text, counters, hero timeline
+│   ├── Sky shader + sprites      → departure finale (sky.js)
+│   └── EffectComposer + UnrealBloomPass → selective bloom on hot pixels (jet-engine.js)
+├── GSAP + ScrollTrigger          → camera, text, counters, hero timeline, editorial sections
 ├── Lenis                         → smooth host-page scrolling
 ├── @fontsource-variable          → Playfair Display + JetBrains Mono (Geist via CDN)
 └── Vite                          → dev server + static build
@@ -92,23 +93,29 @@ HTML5 + Vanilla JS (ES Modules)
 ```
 /jet-engine-infographic
 ├── index.html              ← Host page: cinematic hero + faux editorial article
+│                              (hero → intro → sticky chapters → stat strip →
+│                               <jet-engine-infographic> → outro → pull quote → footer)
 ├── /public
 │   ├── a350.glb            ← Airbus A350-1000 model (DRACO-compressed)
 │   ├── A350.png            ← Hero flyby plane
-│   └── airbus_a350_blueprint.png ← Hero blueprint reveal
+│   ├── airbus_a350_blueprint.png ← Hero blueprint reveal
+│   ├── chapter-1/2/3.png   ← Sticky-chapter media (aircraft · engine · test rig)
+│   ├── quote-bg.png        ← Pull-quote parallax background
+│   └── /favicon            ← Favicons + site.webmanifest (PWA install metadata)
 ├── /src
-│   ├── jet-engine.js       ← <jet-engine-infographic> Web Component (scene data, styles, Three.js setup)
+│   ├── jet-engine.js       ← <jet-engine-infographic> Web Component (scene data, styles, Three.js setup, bloom composer)
 │   ├── engine-model.js     ← Trent XWB-97 engine + procedural A350 fallback body
 │   ├── model-loader.js     ← GLB loading, normalization, DRACO, graceful fallback
-│   ├── scenes.js           ← Camera presets, particles, scene transitions, counters
+│   ├── scenes.js           ← Camera presets, particles, scene transitions, counters, takeoff finale
 │   ├── interactions.js     ← Raycaster tooltips + click-to-ignite sequence
 │   ├── sky.js              ← Departure finale: Sky shader + drifting cloud sprites
-│   ├── host-animations.js  ← Lenis + GSAP pinned hero timeline (host page)
+│   ├── host-animations.js  ← Lenis + GSAP pinned hero timeline + editorial-section ScrollTriggers (host page)
 │   ├── fonts.css           ← @fontsource-variable imports
-│   └── host.css            ← Host page styles only
+│   └── host.css            ← Host page styles only (incl. editorial sections)
 ├── /docs
-│   ├── PROJECT-SPEC.md     ← this file
-│   └── DESIGN-SYSTEM.md    ← visual source of truth
+│   ├── PROJECT-SPEC.md           ← this file
+│   ├── DESIGN-SYSTEM.md          ← visual source of truth
+│   └── EDITORIAL-SECTIONS-SPEC.md ← spec for the 3 host-page editorial sections
 ├── vite.config.js
 ├── package.json
 └── README.md
@@ -194,7 +201,10 @@ camera presets in `SCENE_CAMERAS` in [src/scenes.js](../src/scenes.js).
 ### Act III — Departure
 
 **Scene 8 — Departure** (`departure`)
-- **Camera:** Hero sky shot that slowly auto-orbits (OrbitControls re-enabled)
+- **Camera:** A scripted **takeoff run** (`playTakeoff()` in scenes.js) — the aircraft
+  starts parked at the back of the runway, a low chase cam shows it accelerate down the
+  roll, it rotates nose-up and lifts off, the runway fades away beneath it, and the camera
+  settles into a slow auto-orbiting hero sky shot (OrbitControls re-enabled).
 - **Headline:** *"And it flies."*
 - **Stats:** `CRUISE SPEED: 945 km/h` · `CRUISE ALTITUDE: 13,100 m`
 - **Environment:** Three.js Sky shader + drifting cloud sprites; the aircraft bobs and
@@ -202,17 +212,20 @@ camera presets in `SCENE_CAMERAS` in [src/scenes.js](../src/scenes.js).
 
 ---
 
-## 7. Interactive Elements (7+ — far exceeds the minimum of 3)
+## 7. Interactive Elements (10+ — far exceeds the minimum of 3)
 
 | # | Element | Where | Implementation |
 |---|---|---|---|
 | 1 | Cinematic scroll hero | Host page | GSAP ScrollTrigger pins the hero; a flyby plane enters, expands, and dissolves into the A350 title + blueprint, scrubbed by Lenis |
 | 2 | Smooth scrolling | Host page | Lenis driven by the GSAP ticker, synced to ScrollTrigger |
-| 3 | Drag-to-orbit | Scenes 0 & 8 | OrbitControls with damping; wheel-zoom toggled per scene via `data-lenis-prevent` |
-| 4 | Hover tooltips (raycasting) | Scene 0 + Scenes 3–7 | Raycaster resolves aircraft zones (Scene 0) and named engine parts (anatomy scenes) |
-| 5 | Scene navigation | All scenes | CTA buttons (Acts I/III) + Prev/Next stage nav (Act II), each driving a GSAP camera + content transition |
-| 6 | Click-to-ignite | Scene 5 | Button triggers the combustion timeline + camera shake/pull-back + exhaust puff |
-| 7 | Animated data counters | Every scene | Numbers count up from 0 on scene activation (GSAP, tabular-nums) |
+| 3 | Sticky chapter scroll | Host page (Section B) | A pinned media frame cross-fades through 3 chapter images as the right-hand text column scrolls past (3DS-style); on mobile it becomes a horizontal swipe carousel with progress dots. See EDITORIAL-SECTIONS-SPEC.md |
+| 4 | Animated stat strip | Host page (Section A) | Four mono stats count up from 0 once, when the strip enters the viewport |
+| 5 | Pull-quote parallax | Host page (Section C) | Full-bleed quote whose background image scrubs slower than the text on scroll, with a fade-up reveal |
+| 6 | Drag-to-orbit | Scenes 0 & 8 | OrbitControls with damping; wheel-zoom toggled per scene via `data-lenis-prevent` |
+| 7 | Hover tooltips (raycasting) | Scene 0 + Scenes 3–7 | Raycaster resolves aircraft zones (Scene 0) and named engine parts (anatomy scenes) |
+| 8 | Scene navigation | All scenes | CTA buttons (Acts I/III) + Prev/Next stage nav (Act II), each driving a GSAP camera + content transition |
+| 9 | Click-to-ignite | Scene 5 | Button triggers the combustion timeline + bloom ramp + camera shake/pull-back + exhaust puff |
+| 10 | Animated data counters | Every scene | Numbers count up from 0 on scene activation (GSAP, tabular-nums) |
 
 ---
 
@@ -240,6 +253,13 @@ Hand-built so each part is individually animatable and tooltip-targetable:
 **Lighting:** sun key light, electric-blue rim, combustion-orange fill, sky ambient.
 Ambient/key intensity and fog are re-tuned per act (bright sky in Acts I/III, dark in Act II).
 ACES filmic tone mapping on the renderer.
+
+**Post-processing — selective bloom.** The scene renders through an `EffectComposer`
+(`RenderPass` → `UnrealBloomPass` → `OutputPass`) with a high threshold (~0.72) so only
+bright/hot pixels bloom past their edges. Strength is driven per scene by `setBloom()`:
+a low base (`BLOOM_BASE ≈ 0.16`) through the cool scenes, ramped on combustion (≈0.85
+while ignited) and the thrust reveal (≈0.55). The composer falls back to a direct render
+if it fails to initialise.
 
 ### Finale environment (`sky.js`)
 Three.js `Sky` atmospheric-scattering shader + a recycled field of canvas-painted
@@ -273,7 +293,16 @@ than pinned to fixed pixels:
 | Breakpoint | Behavior |
 |---|---|
 | Desktop (≥769px) | Component capped at 1440px wide; stage is 16:9, max-height 720px; all features active |
-| Mobile (≤768px) | Stage switches to a taller portrait crop (~375:560, max-height 560px); tighter padding; smaller type; data readouts compressed; OrbitControls handle touch (drag + pinch) |
+| Mobile (≤768px) | Stage switches to a taller portrait crop (~375:560, max-height 560px); tighter padding; smaller type; data readouts compressed; **on-canvas controls (ignite / explore / stage-nav) clear the 44px touch-target minimum**; OrbitControls handle touch (drag + pinch) |
+| Narrow phone (≤420px) | Data row + stage-nav padding tighten further so nothing crowds or overflows |
+
+**Host page** mirrors this: the hero uses `100dvh` (no URL-bar crop), its title scales
+down and the secondary flight-strip metrics collapse so the line never overflows; the
+hero's A350 reveal **restacks** on mobile (title centred up top, full blueprint below,
+instead of the desktop title-left / blueprint-right split — driven by `gsap.matchMedia`);
+body copy drops the desktop full-bleed negative margins for a comfortable reading gutter,
+the sticky-chapter section becomes a **horizontal swipe carousel** (CSS scroll-snap, one
+image-per-card, numbered progress indicators), and the pull quote reclaims its inner padding.
 
 Pixel ratio is capped at 2 for performance. `prefers-reduced-motion` collapses
 animation/transition durations.
@@ -294,15 +323,19 @@ animation/transition durations.
 - [x] Combustion ignition sequence (flash, ramp, breathing pulse, camera shake/pull-back)
 - [x] Raycaster tooltips (aircraft zones + engine parts)
 - [x] Particle systems (intake stream, exhaust plume + ignition puff)
+- [x] **Selective bloom** post-processing (EffectComposer + UnrealBloomPass, per-scene strength)
 - [x] OrbitControls + wheel-zoom ownership per scene (Lenis-aware)
-- [x] **Departure finale** — Sky shader + drifting clouds + flight bob/bank
+- [x] **Departure finale** — scripted runway takeoff roll → lift-off → Sky shader + drifting clouds + flight bob/bank
+- [x] **Host editorial sections** — sticky chapter scroll (B), animated stat strip (A), pull-quote parallax (C)
+- [x] **Favicons + web manifest** (PWA install metadata in `public/favicon/`)
 - [x] Idle motion (fan + turbine rotation, engine sway)
 - [x] Mobile media queries + reduced-motion handling
+- [x] **Mobile responsiveness pass** — ≥44px touch targets on all on-canvas controls,
+  flight-strip collapse + hero type scaling (no horizontal overflow), readable body-text
+  gutters, `100dvh` hero, tightened editorial-section rhythm, narrow-phone (≤420px) refinements
 
 ### 🔲 Remaining before submission
-- [ ] Refresh README (features list, limitations, live URL)
-- [ ] Cross-browser pass (Chrome, Safari, Firefox)
-- [ ] Final mobile/touch tuning at the target sizes
+- [ ] Cross-browser pass (Chrome, Safari, Firefox) + on-device check at 375×677
 - [ ] Netlify deploy + verify the embedded demo flow
 
 ---
@@ -332,7 +365,11 @@ animation/transition durations.
 - **GSAP over Anime.js** — cleanest timeline + scroll API.
 - **DRACO decoder via CDN** — keeps the repo light; can be vendored into `public/draco/`
   for offline use.
-- **Scope discipline:** no sound, no engine comparisons, no post-processing shaders.
+- **Post-processing kept to one restrained pass** — the original spec ruled out
+  post-processing entirely; that was relaxed to a *single* selective `UnrealBloomPass`
+  (high threshold, low base strength) because it makes the combustion and thrust scenes
+  read as genuinely hot without tipping into a glowy/neon look. No other shader passes.
+- **Scope discipline:** no sound, no engine comparisons, no further post-processing.
 
 ---
 
