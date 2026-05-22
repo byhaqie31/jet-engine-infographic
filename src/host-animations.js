@@ -17,11 +17,13 @@ const center    = document.querySelector('.hero__center');
 const reveal    = document.querySelector('.hero__reveal');
 const blueprint = document.querySelector('.hero__blueprint');
 const revealRule = document.querySelector('.hero__reveal .hero__rule');
+const strip     = document.querySelector('.hero__strip');
+const metrics   = document.querySelector('.hero__metrics');
 
 if (plane) {
   // Flip nose-first (PNG faces left) — maintained throughout all phases
   gsap.set(plane,  { yPercent: -50, x: '-110vw', scaleX: -1, scaleY: 1, rotation: -2 });
-  gsap.set(reveal, { xPercent: -50, yPercent: -50, opacity: 0 });
+  gsap.set(reveal, { xPercent: -50, yPercent: -50, opacity: 0, willChange: 'transform, opacity' });
   // Blueprint waits off to the right, slightly enlarged, until Phase 4
   gsap.set(blueprint, { opacity: 0, x: '8vw', scale: 1.06, transformOrigin: 'right center' });
 
@@ -33,6 +35,7 @@ if (plane) {
       pin: true,
       scrub: 1.5,
       anticipatePin: 1,
+      invalidateOnRefresh: true,   // recompute the function-based slide target on resize
     },
   });
 
@@ -60,6 +63,14 @@ if (plane) {
     duration: 1.2,
   }, 2);
 
+  // Part-1 chrome (top flight strip + bottom metrics) dissolves as the aircraft
+  // engulfs the screen — the A350 reveal that follows belongs to a clean frame.
+  // Scrubbed, so it fades back in when scrolling up. Scroll cue is left alone.
+  const chrome = [strip, metrics].filter(Boolean);
+  if (chrome.length) {
+    tl.to(chrome, { opacity: 0, ease: 'power1.in', duration: 1.0 }, 2);
+  }
+
   // ─── Phase 3 (3.2 → 4.4): Plane dissolves → Airbus title rises ────────────
   tl.to(plane, {
     opacity: 0,
@@ -73,25 +84,37 @@ if (plane) {
     ease: 'power2.out',
   }, 3.5);
 
-  // ─── Phase 4 (4.4 → 5.6): Title slides left, blueprint reveals on the right ─
-  // Re-anchor the title to a left column and left-align its content.
-  tl.set(reveal, { textAlign: 'left' }, 4.4);
-  if (revealRule) tl.set(revealRule, { marginLeft: 0, marginRight: 'auto' }, 4.4);
+  // ─── Phase 4 (4.4 → 5.8): Title slides left, blueprint reveals on the right ─
+  // Slide with a transform (x) rather than animating `left`, so the move stays on
+  // the compositor and scrubs smoothly — no per-frame layout reflow. The block
+  // keeps its centred anchor (left:50% / xPercent:-50); x carries it to a 7vw
+  // left edge. Resize-safe function value, recomputed via invalidateOnRefresh:
+  //   edge = 50%·vw + x − 50%·W  ⇒  x = 7%·vw − 50%·vw + 50%·W
+  const revealShiftX = () =>
+    0.07 * window.innerWidth - 0.5 * window.innerWidth
+    + 0.5 * Math.min(620, 0.88 * window.innerWidth);
 
   tl.to(reveal, {
-    left: '7vw',
-    xPercent: 0,
-    duration: 1.2,
+    x: revealShiftX,
+    duration: 1.4,
     ease: 'power2.inOut',
+    force3D: true,
   }, 4.4);
+
+  // Re-anchor text to the left column. text-align/margin can't tween, so flip them
+  // at mid-slide (5.1 ≈ peak velocity of the inOut ease) where the motion masks the
+  // discrete jump — at 4.4 the slide is at rest and the snap would be fully visible.
+  tl.set(reveal, { textAlign: 'left' }, 5.1);
+  if (revealRule) tl.set(revealRule, { marginLeft: 0, marginRight: 'auto' }, 5.1);
 
   // Blueprint slides in from the right and settles, melting into the navy field.
   tl.to(blueprint, {
     opacity: 0.95,
     x: 0,
     scale: 1,
-    duration: 1.2,
+    duration: 1.4,
     ease: 'power2.out',
+    force3D: true,
   }, 4.5);
 }
 
