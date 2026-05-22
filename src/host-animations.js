@@ -50,8 +50,9 @@ if (plane) {
     (ctx) => {
       const { isMobile } = ctx.conditions;
 
-      // Flip nose-first (PNG faces left) — maintained throughout all phases
-      gsap.set(plane,  { yPercent: -50, x: '-110vw', scaleX: -1, scaleY: 1, rotation: -2 });
+      // PNG is a top-down, nose-up silhouette: start it centred horizontally and
+      // parked just below the viewport, ready to rise into the middle (no flip).
+      gsap.set(plane,  { xPercent: -50, yPercent: -50, x: 0, y: '100vh', scale: 1, rotation: 0 });
       gsap.set(reveal, { xPercent: -50, yPercent: -50, opacity: 0, willChange: 'transform, opacity' });
       // Blueprint waits off-stage until Phase 4 — to the right on desktop, below on mobile.
       gsap.set(blueprint, isMobile
@@ -70,16 +71,15 @@ if (plane) {
         },
       });
 
-      // ─── Phase 1 (0 → 2): Plane enters from left, lands at screen centre ──────
-      tl.to(plane, { x: '16vw', rotation: -2, ease: 'power1.inOut', duration: 2 }, 0);
+      // ─── Phase 1 (0 → 2): Plane rises from below into the screen centre ───────
+      tl.to(plane, { y: '0vh', ease: 'power2.out', duration: 2 }, 0);
 
       // Title fades as the plane approaches — starts when plane is mid-flight
       tl.to(center, { opacity: 0, ease: 'power1.in', duration: 1.0 }, 0.8);
 
-      // ─── Phase 2 (2 → 3.2): Plane expands — scaleX stays negative to keep flip ─
+      // ─── Phase 2 (2 → 3.2): Plane expands uniformly to engulf the frame ───────
       tl.to(plane, {
-        scaleX: -6,   // negative = flip preserved, magnitude = expansion
-        scaleY: 6,
+        scale: 6,
         opacity: 1,
         ease: 'power2.in',
         duration: 1.2,
@@ -238,6 +238,59 @@ if (chaptersScroller && chapterDots.length && chapterCards.length) {
     { root: chaptersScroller, threshold: 0.6 },
   );
   chapterCards.forEach((card) => io.observe(card));
+}
+
+// ── SECTION D: compatibility strip — silhouette + text fade up on entry ──
+// Same once-on-enter reveal as the pull quote below; skipped under reduced
+// motion (the section then sits at its static final state).
+const compat = document.querySelector('.compat');
+if (compat && !prefersReduced) {
+  ScrollTrigger.create({
+    trigger: compat,
+    start: 'top 80%',
+    once: true,
+    onEnter: () => gsap.from(
+      compat.querySelectorAll('.compat__plane, .compat__name, .compat__note'),
+      { y: 24, opacity: 0, duration: 1, stagger: 0.12, ease: 'power3.out' },
+    ),
+  });
+}
+
+// ── SECTION E: specs grid — rows fade up, lightly staggered ──
+const specs = document.querySelector('.specs');
+if (specs && !prefersReduced) {
+  ScrollTrigger.create({
+    trigger: specs,
+    start: 'top 80%',
+    once: true,
+    onEnter: () => gsap.from(
+      specs.querySelectorAll('.spec-row'),
+      { y: 12, opacity: 0, duration: 0.6, stagger: 0.04, ease: 'power2.out' },
+    ),
+  });
+}
+
+// ── SECTION F: Airbus pop quiz — tap toggle + staggered entrance ──
+// Hover/focus reveals are pure CSS (see host.css). This adds the touch path:
+// a tap toggles a persistent .is-revealed (and aria-pressed) so the answer
+// shows on devices without hover; keyboard users get it free via the button.
+document.querySelectorAll('.qcard').forEach((card) => {
+  card.addEventListener('click', () => {
+    const revealed = card.classList.toggle('is-revealed');
+    card.setAttribute('aria-pressed', String(revealed));
+  });
+});
+
+const quiz = document.querySelector('.quiz');
+if (quiz && !prefersReduced) {
+  ScrollTrigger.create({
+    trigger: quiz,
+    start: 'top 80%',
+    once: true,
+    onEnter: () => gsap.from(quiz.querySelectorAll('.qcard'), {
+      y: 24, opacity: 0, duration: 0.7, stagger: 0.08, ease: 'power3.out',
+    }),
+  });
 }
 
 // ── SECTION C: pull quote — background parallax + text reveal ──

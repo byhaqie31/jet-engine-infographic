@@ -407,16 +407,19 @@ const styles = `
     letter-spacing: -0.01em;
   }
 
-  /* ---------- SCENE 0 CTA ROW — primary + secondary side by side ---------- */
+  /* ---------- SCENE 0 CTA ROW — primary + secondary, equal width ---------- */
+  /* Equal 1fr columns make both CTAs share the width of the wider label
+     ("WATCH TAKEOFF"). display:none items are dropped from the grid, so the
+     single-CTA scenes (1, 2) still centre their lone button. */
   .stage-cta {
     position: absolute;
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    display: flex;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
     gap: 12px;
     z-index: 15;
   }
@@ -731,6 +734,12 @@ const styles = `
     .data__label { font-size: 9px; letter-spacing: 0.16em; }
     .stage-nav { padding: 0 12px; }
     .stage-nav__btn { padding: 12px 14px; letter-spacing: 0.1em; }
+  }
+
+  /* Very small phones — stack the two CTAs (now full-width, still equal) so the
+     longer label can't clip when they no longer fit side by side. */
+  @media (max-width: 340px) {
+    .stage-cta { grid-auto-flow: row; }
   }
 
   /* ---------- FOCUS & ACCESSIBILITY ---------- */

@@ -48,7 +48,7 @@
       </div>
 
       <!-- A350 flyby plane — sits above the first title (z-4) so it can engulf it -->
-      <img class="hero__plane" src="/A350.png" aria-hidden="true" alt="" />
+      <img class="hero__plane" src="/A350_summary.png" aria-hidden="true" alt="" />
 
       <!-- Phase 1 content — gets swallowed by the expanding aircraft -->
       <div class="hero__center">
@@ -220,6 +220,164 @@
         </figcaption>
       </figure>
     </main>
+
+    <!-- ═══ SECTION D — Aircraft compatibility (post-climax breath) ═══
+         A quiet beat that returns the reader to the airframe the page opened
+         with, before the closing pull quote. Visually contemplative by design —
+         the pause between the 3D climax and the emotional close. The silhouette
+         PNG ships on a white backing, so `mix-blend-mode: multiply` drops the
+         white onto the light page, leaving just the aircraft (see host.css). -->
+    <section class="compat" aria-label="Engine and aircraft compatibility">
+      <div class="compat__header">
+        <span class="compat__rule"></span>
+        <p class="compat__eyebrow">Exclusively certified for</p>
+        <span class="compat__rule"></span>
+      </div>
+
+      <img class="compat__plane" src="/A350_summary.png"
+           alt="Top-down silhouette of the Airbus A350-1000"
+           loading="lazy" decoding="async" />
+
+      <h2 class="compat__name">Airbus A350-1000</h2>
+      <p class="compat__note">
+        The 97,000&nbsp;lbf XWB-97 powers one airframe and one alone — the
+        largest member of the A350 family, and the only widebody it was built
+        to fly.
+      </p>
+    </section>
+
+    <!-- ═══ SECTION E — Specs at a glance (the datasheet close) ═══
+         A static reference grid — the "encyclopedia entry" that gives the
+         reader technical closure after the visual story, just before the
+         poetic pull quote. Pure CSS grid + tabular-nums mono, all tokens. -->
+    <section class="specs" aria-label="Trent XWB-97 specifications at a glance">
+      <div class="specs__header">
+        <span class="specs__rule"></span>
+        <h2 class="specs__title">The Trent XWB-97 · at a glance</h2>
+        <span class="specs__rule"></span>
+      </div>
+
+      <div class="specs__columns">
+        <div class="specs__column">
+          <div class="spec-row"><span class="spec-row__label">Max thrust</span><span class="spec-row__value">97,000 lbf</span></div>
+          <div class="spec-row"><span class="spec-row__label">Bypass ratio</span><span class="spec-row__value">9.3 : 1</span></div>
+          <div class="spec-row"><span class="spec-row__label">Pressure ratio</span><span class="spec-row__value">50 : 1</span></div>
+          <div class="spec-row"><span class="spec-row__label">HP shaft speed</span><span class="spec-row__value">12,200 RPM</span></div>
+          <div class="spec-row"><span class="spec-row__label">Air flow</span><span class="spec-row__value">1,335 kg/s</span></div>
+        </div>
+        <div class="specs__column">
+          <div class="spec-row"><span class="spec-row__label">Fan diameter</span><span class="spec-row__value">3.00 m</span></div>
+          <div class="spec-row"><span class="spec-row__label">Dry weight</span><span class="spec-row__value">7,277 kg</span></div>
+          <div class="spec-row"><span class="spec-row__label">Manufacturer</span><span class="spec-row__value">Rolls-Royce</span></div>
+          <div class="spec-row"><span class="spec-row__label">Origin</span><span class="spec-row__value">Derby, UK</span></div>
+          <div class="spec-row"><span class="spec-row__label">In service on</span><span class="spec-row__value">A350-1000</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ SECTION F — Airbus pop quiz (interactive reveal grid) ═══
+         Six fun facts as a 3×2 grid of reveal cards. Each card is a <button>
+         so it's keyboard-focusable and tappable: hover reveals on pointer
+         devices, tap toggles on touch (host-animations.js), Enter/Space for
+         keyboard. The question cross-fades to the answer — no layout reflow
+         (fixed card height). Tokens only; no new colors/fonts/easings. -->
+    <section class="quiz" aria-label="Airbus pop quiz">
+      <div class="quiz__header">
+        <span class="quiz__rule"></span>
+        <p class="quiz__eyebrow">Pop quiz · the Airbus file</p>
+        <span class="quiz__rule"></span>
+      </div>
+      <p class="quiz__hint">
+        Six things you might not know. Hover a card — or tap on mobile — to
+        reveal the answer.
+      </p>
+
+      <div class="quiz__grid">
+        <button class="qcard" type="button" aria-pressed="false">
+          <span class="qcard__top">
+            <span class="qcard__num">01</span>
+            <span class="qcard__toggle" aria-hidden="true"></span>
+          </span>
+          <span class="qcard__faces">
+            <span class="qcard__face qcard__face--q">The largest passenger jet ever built?</span>
+            <span class="qcard__face qcard__face--a">
+              <span class="qcard__a-rule"></span>
+              The Airbus A380 — a double-decker seating up to 853.
+            </span>
+          </span>
+        </button>
+
+        <button class="qcard" type="button" aria-pressed="false">
+          <span class="qcard__top">
+            <span class="qcard__num">02</span>
+            <span class="qcard__toggle" aria-hidden="true"></span>
+          </span>
+          <span class="qcard__faces">
+            <span class="qcard__face qcard__face--q">The world's longest passenger flight?</span>
+            <span class="qcard__face qcard__face--a">
+              <span class="qcard__a-rule"></span>
+              Singapore to New York on the A350-900ULR — nearly 19 hours.
+            </span>
+          </span>
+        </button>
+
+        <button class="qcard" type="button" aria-pressed="false">
+          <span class="qcard__top">
+            <span class="qcard__num">03</span>
+            <span class="qcard__toggle" aria-hidden="true"></span>
+          </span>
+          <span class="qcard__faces">
+            <span class="qcard__face qcard__face--q">Where is every Airbus brought together?</span>
+            <span class="qcard__face qcard__face--a">
+              <span class="qcard__a-rule"></span>
+              Toulouse, France — its home and main final-assembly line.
+            </span>
+          </span>
+        </button>
+
+        <button class="qcard" type="button" aria-pressed="false">
+          <span class="qcard__top">
+            <span class="qcard__num">04</span>
+            <span class="qcard__toggle" aria-hidden="true"></span>
+          </span>
+          <span class="qcard__faces">
+            <span class="qcard__face qcard__face--q">When did Airbus take flight as a company?</span>
+            <span class="qcard__face qcard__face--a">
+              <span class="qcard__a-rule"></span>
+              1970 — founded as the Airbus Industrie consortium.
+            </span>
+          </span>
+        </button>
+
+        <button class="qcard" type="button" aria-pressed="false">
+          <span class="qcard__top">
+            <span class="qcard__num">05</span>
+            <span class="qcard__toggle" aria-hidden="true"></span>
+          </span>
+          <span class="qcard__faces">
+            <span class="qcard__face qcard__face--q">Airbus's best-selling aircraft?</span>
+            <span class="qcard__face qcard__face--a">
+              <span class="qcard__a-rule"></span>
+              The A320 family — more than 18,000 ordered.
+            </span>
+          </span>
+        </button>
+
+        <button class="qcard" type="button" aria-pressed="false">
+          <span class="qcard__top">
+            <span class="qcard__num">06</span>
+            <span class="qcard__toggle" aria-hidden="true"></span>
+          </span>
+          <span class="qcard__faces">
+            <span class="qcard__face qcard__face--q">The first airliner to fly by wire?</span>
+            <span class="qcard__face qcard__face--a">
+              <span class="qcard__a-rule"></span>
+              The A320, in 1988 — the first with digital fly-by-wire.
+            </span>
+          </span>
+        </button>
+      </div>
+    </section>
 
     <!-- ═══ SECTION C — Pull quote with parallax (full-bleed dark moment) ═══ -->
     <section class="quote-block" aria-label="Pull quote">

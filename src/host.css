@@ -205,19 +205,22 @@ body {
   color: rgba(245, 245, 240, 0.4);
 }
 
-/* A350 flyby plane — above first title so expansion engulfs it */
+/* A350 flyby plane — top-down silhouette that rises from below, centres, then
+   expands to engulf the first title. Centred via left:50% so JS only drives y. */
 .hero__plane {
   position: absolute;
-  width: 68vw;
-  max-width: 960px;
+  width: clamp(220px, 30vw, 420px);   /* square silhouette — smaller than the old side view */
   height: auto;
   top: 50%;
-  left: 0;
+  left: 50%;
   pointer-events: none;
   will-change: transform;
+  /* Super-black: force pure #000 (the PNG ships dark grey), then a soft luminous
+     halo so the black plane still reads against the dark navy hero field. */
   filter:
-    drop-shadow(0 0 40px rgba(245, 245, 240, 0.18))
-    drop-shadow(0 0 80px rgba(245, 245, 240, 0.08));
+    brightness(0)
+    drop-shadow(0 0 30px rgba(245, 245, 240, 0.25))
+    drop-shadow(0 0 70px rgba(79, 195, 247, 0.18));
   z-index: 4;
 }
 
@@ -403,19 +406,19 @@ body {
 .embed-footer {
   width: 100%;
   max-width: 640px;
-  margin: var(--space-6) auto 0;
-  padding-top: var(--space-5);
+  margin: var(--space-5) auto 0;
+  padding-top: var(--space-4);
   border-top: 1px solid var(--host-rule);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  text-align: center;
+  gap: var(--space-2);
+  text-align: left;            /* footnote, not a centred caption */
 }
 
 .embed-footer p {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 12px;             /* small, footnote scale */
+  line-height: 1.5;
   color: var(--host-muted);
 }
 
@@ -532,7 +535,12 @@ body {
 /* The intro/outro prose columns hand their outer rhythm to the sections'
    own var(--space-32) margins, so trim the padding where they meet. */
 .host-article--intro { padding-bottom: 0; }
-.host-article--outro { padding-top: 0; }
+/* The outro footnote now hands off to the compatibility section right below it,
+   so drop the inherited bottom padding + the embed's bottom margin and let a
+   single, reduced section gap carry the rhythm (instead of 120 + 64 + 128px). */
+.host-article--outro { padding-top: 0; padding-bottom: 0; }
+.host-article--outro .host-article__embed { margin-bottom: 0; }
+.host-article--outro + .compat { margin-top: var(--space-16); }
 
 /* ---------- SECTION A — Stat strip ---------- */
 .stat-strip {
@@ -830,4 +838,342 @@ body {
      rather than stacking two gutters and squeezing the line length. */
   .quote-block__quote { padding: 0; }
   .quote-block__text { margin-bottom: var(--space-6); }
+}
+
+/* ============================================
+   EDITORIAL SECTIONS — D & E  (host page only)
+   D — aircraft compatibility (silhouette) · E — specs at a glance
+   Both sit in the outro gap, between the embedded component and the pull
+   quote: a quiet visual breath, then a technical datasheet, before the
+   emotional close. Tokens only — no new colors, fonts, easings or spacing.
+   The two share the rule-flanked mono header used across the editorial set.
+   ============================================ */
+
+/* ---------- SECTION D — Aircraft compatibility ---------- */
+.compat {
+  max-width: 760px;
+  margin: var(--space-32) auto;
+  padding: 0 var(--space-8);
+  text-align: center;
+}
+
+.compat__header,
+.specs__header,
+.quiz__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin-bottom: var(--space-12);
+}
+
+.compat__rule,
+.specs__rule,
+.quiz__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--host-rule);
+}
+
+.compat__eyebrow,
+.specs__title,
+.quiz__eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);        /* 11px — matches .chapter__label / .stat-strip__label */
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--host-muted);
+  white-space: nowrap;
+  margin: 0;
+}
+
+.compat__plane {
+  display: block;
+  width: clamp(180px, 32vw, 300px);
+  height: auto;
+  margin: 0 auto var(--space-8);
+  /* The PNG has a solid white backing (no alpha); multiply drops it onto the
+     light page so only the silhouette shows. Slightly held back so the beat
+     stays quiet rather than a hard black block. */
+  mix-blend-mode: multiply;
+  opacity: 0.9;
+}
+
+.compat__name {
+  font-family: var(--font-display);
+  font-weight: 400;                      /* design system: Playfair Regular (400) */
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--host-ink);
+  margin: 0 0 var(--space-4);
+}
+
+.compat__note {
+  font-size: 17px;                       /* matches .host-article__body / .chapter__body */
+  line-height: 1.7;
+  color: var(--host-muted);
+  max-width: 460px;
+  margin: 0 auto;
+  text-wrap: balance;
+}
+
+/* ---------- SECTION E — Specs at a glance ---------- */
+.specs {
+  max-width: 880px;
+  margin: var(--space-32) auto;
+  padding: 0 var(--space-8);
+}
+
+.specs__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 var(--space-12);
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--host-rule);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-body-small);   /* 14px */
+}
+
+.spec-row__label {
+  color: var(--host-muted);
+  letter-spacing: 0.05em;
+}
+
+.spec-row__value {
+  color: var(--host-ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;       /* keep figures aligned, datasheet feel */
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Tighten page rhythm + collapse the specs to a single column on small screens,
+   mirroring the stat-strip's mobile behaviour. */
+@media (max-width: 600px) {
+  .compat,
+  .specs { margin: var(--space-20) auto; }
+
+  .specs__columns { grid-template-columns: 1fr; }
+
+  .compat__eyebrow,
+  .specs__title,
+  .quiz__eyebrow { font-size: 10px; letter-spacing: 0.18em; }
+}
+
+/* ============================================
+   EDITORIAL SECTION — F  (host page only)
+   Airbus pop quiz — a 3×2 grid of reveal cards before the pull quote.
+   Each card is a <button>: the question cross-fades to the answer on hover
+   (pointer devices), on tap-toggle (.is-revealed, set by host-animations.js),
+   or on keyboard focus. Fixed card height keeps the grid from reflowing.
+   Tokens only — no new colors, fonts, easings or spacing.
+   ============================================ */
+.quiz {
+  /* ── Pop-quiz palette — change these to recolour the whole section ──
+     Everything below (box, cards, text, rules, accent) reads from these,
+     so you only edit here. To go dark: set --quiz-surface/--quiz-card to
+     dark tones and flip --quiz-ink/--quiz-muted to light ones. */
+  --quiz-surface:     #FFFFFF;              /* the big card box behind the grid */
+  --quiz-card:        #EEF4FB;              /* each tile, at rest (faint tint) */
+  --quiz-card-active: #FFFFFF;              /* a tile when revealed/hovered */
+  --quiz-line:        var(--host-rule);     /* borders + header rules */
+  --quiz-ink:         var(--host-ink);      /* questions, answers, active accents */
+  --quiz-muted:       var(--host-muted);    /* numbers, eyebrow, hint, the "+" */
+  --quiz-accent:      var(--color-cool);    /* the answer's accent rule */
+
+  max-width: 1100px;
+  margin: var(--space-32) auto;
+  /* The box itself — solid surface, soft elevation, rounded like the embed. */
+  padding: var(--space-12) var(--space-10);
+  background: var(--quiz-surface);
+  border: 1px solid var(--quiz-line);
+  border-radius: var(--radius-surface);     /* 12px — outermost-container radius */
+  box-shadow: 0 30px 60px -45px rgba(17, 24, 39, 0.45);
+}
+
+/* Header sits tight to the one-line hint below it (overrides the shared
+   header's larger bottom gap used by the compat/specs sections). */
+.quiz__header { margin-bottom: var(--space-4); }
+
+/* Recolour the shared header bits to the quiz palette (the base rules use the
+   host tokens; these just repoint the colour so the box stays themeable). */
+.quiz__eyebrow { color: var(--quiz-muted); }
+.quiz__rule { background: var(--quiz-line); }
+
+.quiz__hint {
+  text-align: center;
+  max-width: 520px;
+  margin: 0 auto var(--space-12);
+  font-size: var(--font-size-body-small);   /* 14px */
+  line-height: 1.6;
+  color: var(--quiz-muted);
+}
+
+.quiz__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);     /* 3×2 on desktop */
+  gap: var(--space-5);
+}
+
+/* ---- Card (a reset <button>) ---- */
+.qcard {
+  -webkit-appearance: none;
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  padding: var(--space-6);
+  background: var(--quiz-card);              /* solid tile on the box (was see-through) */
+  border: 1px solid var(--quiz-line);
+  border-radius: var(--radius-card);         /* 4px */
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  overflow: hidden;
+  /* No transform here — the scroll-entrance tween animates the card's transform,
+     so feedback uses only color/background/shadow to avoid fighting it. */
+  transition: border-color var(--duration-quick) var(--ease-precise),
+              background var(--duration-quick) var(--ease-precise),
+              box-shadow var(--duration-quick) var(--ease-precise);
+}
+
+.qcard__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qcard__num {
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);            /* 11px */
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  color: var(--quiz-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The "+" affordance — two centred lines that rotate to an "×" on reveal. */
+.qcard__toggle {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  transition: transform var(--duration-standard) var(--ease-out);
+}
+.qcard__toggle::before,
+.qcard__toggle::after {
+  content: '';
+  position: absolute;
+  background: var(--quiz-muted);
+  transition: background var(--duration-quick) var(--ease-precise);
+}
+.qcard__toggle::before { left: 0; right: 0; top: 50%; height: 1.5px; transform: translateY(-50%); }
+.qcard__toggle::after  { top: 0; bottom: 0; left: 50%; width: 1.5px; transform: translateX(-50%); }
+
+/* Faces share one box; the question is in flow, the answer overlays it and
+   cross-fades in. min-height reserves room so the card never resizes. */
+.qcard__faces {
+  position: relative;
+  flex: 1;
+  min-height: 96px;
+  margin-top: var(--space-4);
+}
+
+.qcard__face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  transition: opacity var(--duration-standard) var(--ease-out),
+              transform var(--duration-standard) var(--ease-out);
+}
+
+.qcard__face--q {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(18px, 1.6vw, 22px);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--quiz-ink);
+}
+
+.qcard__face--a {
+  opacity: 0;
+  transform: translateY(8px);
+  justify-content: center;     /* vertically centre the answer in the tile */
+  align-items: center;         /* centre the accent rule + the text */
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 17px;             /* a touch larger than before (was 15px) */
+  line-height: 1.45;
+  color: var(--quiz-ink);
+}
+
+.qcard__a-rule {
+  display: block;
+  width: 28px;
+  height: 2px;
+  margin-bottom: var(--space-3);
+  background: var(--quiz-accent);            /* story accent — the air/intake blue */
+}
+
+/* ---- Revealed state: tap-toggle + keyboard focus (works on every device) ---- */
+.qcard.is-revealed,
+.qcard:focus-visible {
+  border-color: var(--quiz-ink);
+  background: var(--quiz-card-active);
+  box-shadow: 0 10px 28px -18px rgba(17, 24, 39, 0.45);
+}
+.qcard.is-revealed .qcard__face--q,
+.qcard:focus-visible .qcard__face--q { opacity: 0; transform: translateY(-8px); }
+.qcard.is-revealed .qcard__face--a,
+.qcard:focus-visible .qcard__face--a { opacity: 1; transform: translateY(0); }
+.qcard.is-revealed .qcard__toggle,
+.qcard:focus-visible .qcard__toggle { transform: rotate(45deg); }
+.qcard.is-revealed .qcard__toggle::before,
+.qcard.is-revealed .qcard__toggle::after,
+.qcard:focus-visible .qcard__toggle::before,
+.qcard:focus-visible .qcard__toggle::after { background: var(--quiz-ink); }
+
+.qcard:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- Hover reveal: only on devices that actually hover (not sticky on touch) ---- */
+@media (hover: hover) {
+  .qcard:hover {
+    border-color: var(--quiz-ink);
+    background: var(--quiz-card-active);
+    box-shadow: 0 10px 28px -18px rgba(17, 24, 39, 0.45);
+  }
+  .qcard:hover .qcard__face--q { opacity: 0; transform: translateY(-8px); }
+  .qcard:hover .qcard__face--a { opacity: 1; transform: translateY(0); }
+  .qcard:hover .qcard__toggle { transform: rotate(45deg); }
+  .qcard:hover .qcard__toggle::before,
+  .qcard:hover .qcard__toggle::after { background: var(--quiz-ink); }
+}
+
+@media (max-width: 900px) {
+  .quiz { padding: var(--space-10) var(--space-8); }
+  .quiz__grid { grid-template-columns: repeat(2, 1fr); }   /* 2 columns on tablet */
+}
+
+@media (max-width: 600px) {
+  .quiz {
+    margin: var(--space-20) auto;
+    padding: var(--space-8) var(--space-5);
+  }
+  .quiz__grid { grid-template-columns: 1fr; gap: var(--space-4); }
+  .qcard { min-height: 150px; }
 }
