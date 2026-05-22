@@ -27,6 +27,11 @@
 - Sans-serif headlines (too startup-y for this concept)
 - Heavy drop shadows (kills the cinematic flat feel)
 
+> **Note on this build:** display headlines use **Playfair Display** (see §3). Used at
+> editorial weights and large optical sizes against generous space, it reads as an
+> aviation-magazine masthead rather than a wedding invitation — its high contrast suits
+> the cinematic, premium tone here.
+
 ---
 
 ## 2. Color System
@@ -66,15 +71,22 @@
 
 ### Color Narrative (per scene)
 
-The palette tells the story of combustion — cool air entering, heat building, fire releasing.
+The experience runs in three acts (9 scenes). The aircraft context (Act I) and the
+departure finale (Act III) play out against a **bright sky-blue environment**; the engine
+anatomy (Act II) plays out against **dark**, where the palette tells the story of
+combustion — cool air entering, heat building, fire releasing.
 
-| Scene | Dominant | Secondary | Mood |
+| Scene | Environment | Accent | Mood |
 |---|---|---|---|
-| 1 — Intake | `--color-cool` | warm white ink | Cool, clinical, expectant |
-| 2 — Compression | `--color-cool-soft` | warm white | Transitional, building |
-| 3 — Combustion | `--color-hot` | warm white | Dramatic, ignited |
-| 4 — Turbine | `--color-hot-soft` | amber | Sustained energy |
-| 5 — Thrust | `--color-amber` + cool rim | white | Triumphant, cinematic |
+| 0 — Intro (aircraft) | Sky-blue | `--color-cool` | Open, expectant |
+| 1 — The engine | Sky-blue | `--color-cool` | Approaching |
+| 2 — Engine exterior | Sky → dark transition | `--color-cool` | Crossing inside |
+| 3 — Intake | Dark | `--color-cool` | Cool, clinical |
+| 4 — Compression | Dark | `--color-cool-soft` | Transitional, building |
+| 5 — Combustion | Dark | `--color-hot` | Dramatic, ignited |
+| 6 — Turbine | Dark | `--color-hot-soft` | Sustained energy |
+| 7 — Thrust | Dark | `--color-amber` + cool rim | Triumphant |
+| 8 — Departure (finale) | Sky shader + clouds | `--color-cool` | Cinematic release |
 
 ### Color Usage Rules
 
@@ -91,13 +103,21 @@ The palette tells the story of combustion — cool air entering, heat building, 
 
 | Role | Font | Weights | Source |
 |---|---|---|---|
-| **Display / Headlines** | **Fraunces** | 300, 400, 500 (variable optical size 9–144) | Google Fonts |
-| **Body / UI** | **Geist Sans** | 400, 500 | npm `geist` or CDN |
-| **Data / Numbers / Labels** | **JetBrains Mono** | 400, 500 | Google Fonts |
+| **Display / Headlines** | **Playfair Display** (variable) | 400 (regular) | `@fontsource-variable/playfair-display` |
+| **Body / UI** | **Geist Sans** | 400, 500 | CDN (`geist@1.3.1` via jsDelivr) |
+| **Data / Numbers / Labels** | **JetBrains Mono** (variable) | 400, 500 | `@fontsource-variable/jetbrains-mono` |
+
+> **Changed from the original spec:** the display face was **Fraunces** in the first
+> draft; the build ships **Playfair Display**. Its high-contrast, editorial cut reads as
+> an aviation-magazine masthead at large sizes and pairs cleanly with the monospace data.
+> (The `@fontsource-variable/fraunces` package may still be installed as a leftover
+> dependency — it is no longer imported or used.)
 
 ### Why This Pairing
 
-- **Fraunces** is a contemporary serif with a soft, slightly editorial feel — modern but warm. Avoids the cold tech-y vibe of Inter and the over-used elegance of Playfair. Variable optical size means it looks crisp at 12px and dramatic at 96px.
+- **Playfair Display** is a high-contrast transitional serif with strong editorial
+  presence. At large optical sizes against generous negative space it carries the
+  cinematic, magazine-spread tone; its variable axis keeps it crisp from caption to hero.
 - **Geist Sans** (by Vercel) has more character than Inter while staying neutral. It reads as "designed by engineers who care about type" — exactly your brand.
 - **JetBrains Mono** for data signals precision and engineering credibility. Numbers feel measured and trustworthy.
 
@@ -129,15 +149,14 @@ The palette tells the story of combustion — cool air entering, heat building, 
 
 ### Typographic Treatments
 
-**Display (Fraunces)**
+**Display (Playfair Display)**
 ```css
 .text-display {
-  font-family: 'Fraunces', Georgia, serif;
-  font-weight: 300;
+  font-family: 'Playfair Display Variable', Georgia, serif;
+  font-weight: 400;
   font-size: var(--font-display-large);
   line-height: 1.05;
   letter-spacing: -0.02em;
-  font-variation-settings: 'opsz' 144;
 }
 ```
 
@@ -180,7 +199,7 @@ The palette tells the story of combustion — cool air entering, heat building, 
 
 ### Typography Rules
 
-- **Headlines:** Always Fraunces Light (300). Tracking `-0.02em` for tighter feel. Line-height `1.05`.
+- **Headlines:** Always Playfair Display Regular (400). Tracking `-0.02em` for tighter feel. Line-height `1.05`.
 - **Body:** Geist Regular (400). Line-height `1.6` for readability.
 - **Numbers always use `tabular-nums`** — without this, animated counters jitter as digits change width. Critical for data readouts.
 - **Labels are always UPPERCASE** with `0.2em` letter-spacing — gives them an architectural, schematic feel.
@@ -222,15 +241,27 @@ The palette tells the story of combustion — cool air entering, heat building, 
 
 ## 5. Layout & Composition
 
-### Canvas Dimensions (per brief)
-- **Desktop:** 1440 × 900px (16:10 aspect ratio)
-- **Mobile:** 375 × 677px (~9:16 aspect ratio)
+### Canvas Dimensions
 
-### Grid Inside the Component
+Designed against the brief's targets (desktop 1440×900, mobile 375×677) but implemented
+**fluid**, not pinned to fixed pixels:
+- **Desktop:** component capped at 1440px wide; the 3D stage is 16:9, max-height 720px
+- **Mobile (≤768px):** stage switches to a taller portrait crop (~375:560, max-height 560px)
 
-**Desktop:** Single centered column, max-content-width `680px`. Engine canvas is the background; text overlays on top.
+### Layout Inside the Component (two-panel)
 
-**Mobile:** Single column, full-width. Text below engine, not overlapping.
+The component is a single bordered card (`.component-wrap`, 12px radius) split into two
+stacked panels — **not** a text-on-canvas overlay:
+
+1. **Info panel (top)** — on `--color-bg-base`, centred: a top bar (scene label + progress
+   bar), the headline + subline, then the data readout row. Text reveals and counters
+   animate here.
+2. **3D stage (below)** — the Three.js canvas, with absolutely-positioned overlays:
+   tooltip, CTA / stage-nav buttons, the ignite button, and the loading state.
+
+A single shared border wraps both panels so they stay pixel-aligned.
+
+**Mobile:** the two panels stack the same way with tighter padding and reduced type sizes.
 
 ### Z-Index Scale
 
@@ -326,7 +357,7 @@ The palette tells the story of combustion — cool air entering, heat building, 
 }
 
 .tooltip__value {
-  font-family: 'Fraunces', serif;
+  font-family: 'Playfair Display Variable', serif;
   font-weight: 400;
   font-size: 18px;
   color: var(--color-ink-primary);
@@ -478,13 +509,16 @@ If you need an icon set for utility: **Lucide** is the cleanest free option. Str
 
 ## 11. Photography & Imagery
 
-You're not using any photography — the engine model IS the imagery. This is intentional and aesthetically correct for the concept. Don't add stock photos, decorative illustrations, or background imagery.
+**Inside the component:** no photography — the 3D models ARE the imagery. Keep it that
+way; don't add stock photos or decorative illustrations into the interactive.
 
-If you absolutely need imagery for the host article context (you currently don't), use:
-- Black and white photography only
-- High grain/film texture
-- Aviation or industrial subject matter
-- Editorial composition (rule of thirds, negative space)
+**In the host hero (host page only):** the cinematic intro uses two flat aviation assets:
+- `A350.png` — the flyby plane that enters, expands, and dissolves into the title
+- `airbus_a350_blueprint.png` — the schematic that slides in during the hero's final phase
+
+These are deliberate, single-purpose, and aviation-subject — consistent with the editorial
+tone. Any further host imagery should follow the same rules: aviation/industrial subject,
+editorial composition (rule of thirds, negative space), no generic stock.
 
 ---
 
@@ -505,7 +539,7 @@ The interactive's copy is already written, but for any additional UI text (butto
 | "Click here to ignite!" | "Ignite" |
 | "Loading awesome 3D model..." | "Initialising" |
 | "Drag to look around!" | "Drag to explore" |
-| "Cool stat: 84,000 lbf!" | "84,000 lbf · enough to lift 38 cars" |
+| "Cool stat: 97,000 lbf!" | "97,000 lbf of thrust per engine" |
 
 ---
 
@@ -535,9 +569,9 @@ Drop this entire block into a `tokens.css` file or the top of your component sty
   --color-overlay:        rgba(10, 11, 15, 0.85);
 
   /* === Typography === */
-  --font-display: 'Fraunces', Georgia, serif;
+  --font-display: 'Playfair Display Variable', Georgia, serif;
   --font-body:    'Geist', system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', 'SF Mono', monospace;
+  --font-mono:    'JetBrains Mono Variable', 'SF Mono', monospace;
 
   --font-display-hero:    clamp(48px, 6vw, 96px);
   --font-display-large:   clamp(32px, 4.5vw, 56px);
@@ -601,7 +635,7 @@ Drop this entire block into a `tokens.css` file or the top of your component sty
 Before considering the project "done," verify:
 
 **Typography**
-- [ ] Fraunces loads correctly with optical sizing
+- [ ] Playfair Display loads correctly (variable, no Fraunces fallback lingering)
 - [ ] All numbers use `tabular-nums`
 - [ ] No font fallbacks visible (FOIT/FOUT handled)
 - [ ] Letter-spacing applied to all uppercase labels

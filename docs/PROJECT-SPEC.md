@@ -1,44 +1,64 @@
 # PROJECT SPEC — Anatomy of Thrust
 
-> **For:** Claude Code
 > **Project:** Interactive Jet Engine Infographic
+> **Subject:** Airbus A350-1000 · Rolls-Royce Trent XWB-97
 > **Client context:** Morph Digital · Front-End Developer Assessment
 > **Submission deadline:** 27 May 2026, 12:00pm
-> **Target completion:** 3 days from start
+
+This is a living spec — it documents the project **as built**, not the original
+day-one plan. The companion [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) is the source of
+truth for visual decisions.
 
 ---
 
 ## 1. Project Overview
 
-Design and develop a cinematic, interactive infographic that tells the story of how a modern turbofan jet engine converts air into thrust. The deliverable is a **standalone embeddable Web Component** that occupies a section of a host webpage — not a multi-page site.
+A cinematic, interactive infographic that tells the story of how a modern turbofan
+converts air into thrust — narrated through a real aircraft and a real engine: the
+**Airbus A350-1000** and its **Rolls-Royce Trent XWB-97**, the most powerful civil
+turbofan in service. The deliverable is a **standalone embeddable Web Component**
+that occupies a section of a host webpage (a faux editorial article), not a
+multi-page site.
 
-The infographic walks the viewer through **5 scenes**:
-1. **Intake** — air flows in
-2. **Compression** — pressure climbs 40×
-3. **Combustion** — fuel ignites at 1,500°C
-4. **Turbine** — turbines spin at 10,000 RPM
-5. **Thrust** — engine produces 84,000 lbf of thrust
+The experience runs across **9 scenes** in three acts:
 
-Aesthetic direction: **editorial × cinematic × premium engineering documentary**. Think Apple product page × Dassault Systèmes industrial storytelling × aviation magazine spread.
+**Act I — The aircraft (context)**
+1. **Intro** — orbit the full A350-1000 on the runway
+2. **The engine** — approach the nacelle under the wing
+3. **Engine exterior** — the aircraft ghosts out and the engine is revealed inside it
+
+**Act II — Anatomy of thrust (the engine, 5 numbered stages)**
+4. **Intake** — the 22-blade fan draws in 1,335 kg of air per second
+5. **Compression** — 14 stages raise pressure to 50:1
+6. **Combustion** — fuel ignites at 1,700°C (click to ignite)
+7. **Turbine** — six stages spin the HP shaft at 12,200 RPM
+8. **Thrust** — 97,000 lbf per engine
+
+**Act III — Departure (payoff)**
+9. **Departure** — the aircraft flies through an atmospheric sky as the camera orbits
+
+Aesthetic direction: **editorial × cinematic × premium engineering documentary** —
+Apple product page × Dassault Systèmes industrial storytelling × aviation magazine
+spread.
 
 ---
 
 ## 2. Hard Requirements (from the brief)
 
-| # | Requirement | Notes |
+| # | Requirement | How it's met |
 |---|---|---|
-| 1 | Canvas size — Desktop: 1440×900px, Mobile: 375×677px | Fixed dimensions for the asset itself |
-| 2 | Built with HTML, CSS, JavaScript | No frameworks like Nuxt/React/Vue |
-| 3 | Animation libraries allowed (GSAP, Anime.js, ScrollReveal) | We use GSAP + ScrollTrigger |
-| 4 | Web Component implementation | Encouraged in brief — use Custom Element + Shadow DOM |
-| 5 | Minimum 3 types of interactive elements | We deliver 5+ |
-| 6 | Responsive design — desktop + mobile | Mobile variant required |
-| 7 | Smooth scrolling/transitions between sections | GSAP ScrollTrigger drives this |
-| 8 | Maintainable, well-documented code | Comments on logic, clean structure |
-| 9 | Git repository (GitHub or GitLab) | Public repo |
-| 10 | README with run instructions, features, limitations | Already scaffolded |
-| 11 | Hosted demo on Netlify | Deploy on Day 3 |
-| 12 | **Bonus:** Three.js integration | Core to our approach — stylized engine model |
+| 1 | Canvas size — Desktop 1440×900, Mobile 375×677 | Fluid/responsive: component capped at 1440px wide; stage is 16:9 (≤720px tall) on desktop, taller portrait crop on mobile. Designed against the brief's targets but not pinned to fixed pixels — see §10. |
+| 2 | Built with HTML, CSS, JavaScript | Vanilla ES modules. No Nuxt/React/Vue. |
+| 3 | Animation libraries allowed | GSAP + ScrollTrigger, with Lenis for smooth scroll |
+| 4 | Web Component implementation | Custom Element + full Shadow DOM |
+| 5 | Minimum 3 types of interactive elements | 7+ delivered — see §7 |
+| 6 | Responsive design — desktop + mobile | Two-panel responsive layout with mobile media queries |
+| 7 | Smooth scrolling/transitions | Lenis smooth scroll + GSAP camera/text choreography |
+| 8 | Maintainable, well-documented code | Modular `src/`, "why" comments throughout |
+| 9 | Git repository | Public repo |
+| 10 | README with run instructions, features, limitations | Maintained |
+| 11 | Hosted demo on Netlify | `base: './'` set for static hosting; deploy at sign-off |
+| 12 | **Bonus:** Three.js integration | Core — GLB aircraft + primitives engine + Sky shader |
 
 ---
 
@@ -47,15 +67,23 @@ Aesthetic direction: **editorial × cinematic × premium engineering documentary
 ```
 HTML5 + Vanilla JS (ES Modules)
 ├── Web Components (Custom Elements + Shadow DOM)
-├── Three.js          → 3D engine model
-├── GSAP + ScrollTrigger → animation choreography
-└── Vite              → dev server + build
+├── Three.js
+│   ├── GLTFLoader + DRACOLoader → Airbus A350 GLB (public/a350.glb)
+│   ├── primitives                → Trent XWB-97 engine (engine-model.js)
+│   └── Sky shader + sprites      → departure finale (sky.js)
+├── GSAP + ScrollTrigger          → camera, text, counters, hero timeline
+├── Lenis                         → smooth host-page scrolling
+├── @fontsource-variable          → Playfair Display + JetBrains Mono (Geist via CDN)
+└── Vite                          → dev server + static build
 ```
 
 **Why this stack:**
-- Vanilla = framework-agnostic embeddability (the whole point of a Web Component)
-- Vite = fast HMR + tiny optimized build
-- No PHP/Nuxt/React — those would defeat the embeddable goal
+- Vanilla + Shadow DOM = framework-agnostic embeddability (the whole point).
+- Three.js does double duty: a loaded GLB for the recognisable airframe, hand-built
+  primitives for the engine so every part stays individually animatable.
+- Lenis gives the host article the buttery scroll the cinematic hero needs; GSAP
+  ScrollTrigger pins and scrubs that hero, while the component drives its own scenes.
+- Vite for fast HMR and a tiny optimised build.
 
 ---
 
@@ -63,138 +91,159 @@ HTML5 + Vanilla JS (ES Modules)
 
 ```
 /jet-engine-infographic
-├── index.html              ← Demo host page (faux editorial article)
+├── index.html              ← Host page: cinematic hero + faux editorial article
+├── /public
+│   ├── a350.glb            ← Airbus A350-1000 model (DRACO-compressed)
+│   ├── A350.png            ← Hero flyby plane
+│   └── airbus_a350_blueprint.png ← Hero blueprint reveal
 ├── /src
-│   ├── jet-engine.js       ← <jet-engine-infographic> Web Component
-│   ├── engine-model.js     ← Three.js turbofan model (built from primitives)
-│   ├── scenes.js           ← (Day 2) GSAP scene choreography module
-│   ├── interactions.js     ← (Day 2) Raycaster tooltips + ignition logic
+│   ├── jet-engine.js       ← <jet-engine-infographic> Web Component (scene data, styles, Three.js setup)
+│   ├── engine-model.js     ← Trent XWB-97 engine + procedural A350 fallback body
+│   ├── model-loader.js     ← GLB loading, normalization, DRACO, graceful fallback
+│   ├── scenes.js           ← Camera presets, particles, scene transitions, counters
+│   ├── interactions.js     ← Raycaster tooltips + click-to-ignite sequence
+│   ├── sky.js              ← Departure finale: Sky shader + drifting cloud sprites
+│   ├── host-animations.js  ← Lenis + GSAP pinned hero timeline (host page)
+│   ├── fonts.css           ← @fontsource-variable imports
 │   └── host.css            ← Host page styles only
+├── /docs
+│   ├── PROJECT-SPEC.md     ← this file
+│   └── DESIGN-SYSTEM.md    ← visual source of truth
 ├── vite.config.js
 ├── package.json
-├── .gitignore
 └── README.md
 ```
 
 ---
 
-## 5. Design System
+## 5. Design System (summary)
 
-### Color Palette
-| Role | Color | Hex | Usage |
-|---|---|---|---|
-| Background | Near-black | `#0A0B0F` | Main canvas |
-| Surface | Deep charcoal | `#13151C` | Cards, tooltips |
-| Cool accent | Electric blue | `#4FC3F7` | Intake, fan, scenes 1–2 |
-| Hot accent | Combustion orange | `#FF6B35` | Combustion, exhaust, scenes 3–5 |
-| Ink | Warm white | `#F5F5F0` | Headlines, key data |
-| Muted | Soft gray | `#8B8D98` | Body, captions |
-| Hairline | `rgba(255,255,255,0.08)` | Borders, dividers |
+Full detail lives in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md). Headlines:
 
-**Color narrative:** Scenes shift from cool blue (air) → neutral (compression) → orange (combustion) → warm amber (turbine + thrust). The palette tells the story.
+**Color** — near-black canvas (`#0A0B0F`), warm-white ink (`#F5F5F0`), a cool→hot
+story arc: electric blue (`#4FC3F7`) for air/intake → neutral compression → combustion
+orange (`#FF6B35`) → warm amber (`#FFB07A`) for turbine/thrust. The aircraft acts (Act I)
+and finale (Act III) use a sky-blue ambient palette; the engine anatomy (Act II) plays
+out against dark.
 
-### Typography
-- **Display:** Fraunces (Light/Regular, optical size 144) — characterful serif, editorial
-- **Body/UI:** Geist Sans — distinctive modern sans
-- **Data/Mono:** JetBrains Mono — for stats, labels, technical readouts
+**Type** — **Playfair Display** (variable) for editorial serif headlines, **Geist Sans**
+for body/UI, **JetBrains Mono** (variable) for labels and data readouts. (The original
+spec used Fraunces; it was replaced by Playfair Display — see DESIGN-SYSTEM §3.)
 
-**Type scale:**
-- Hero display: `clamp(48px, 6vw, 96px)` — Fraunces Light, tracking -0.02em
-- Scene title: `clamp(32px, 4.5vw, 56px)` — Fraunces Regular
-- Body: 16px — Geist Regular, line-height 1.6
-- Caption/label: 11px — JetBrains Mono, uppercase, tracking 0.2em
-- Data readout: 18px — JetBrains Mono Medium
-
-### Motion Principles
-- Easings: `power2.out` for entrances, `power3.inOut` for camera moves
-- No bouncy/elastic — too playful for this tone
-- Durations: headlines 0.8s, camera moves 1.2s, counters 1.5s
-- Stagger reveals by 0.1s per element
-- Idle state: fan blades always rotate, particles always drift — never fully static
+**Motion** — `power2/power3` GSAP easings, no bounce/elastic. Idle motion is sacred:
+fan + turbine always rotate, particles drift, clouds stream in the finale.
 
 ---
 
 ## 6. Scene-by-Scene Spec
 
-### Scene 1 — Intake
-- **Camera:** Wide shot, 3/4 front, slight low angle
-- **Headline:** *"It begins with air."*
-- **Subline:** *Every second, the fan pulls in 1.2 tonnes of it.*
-- **Stats:** `AIR FLOW: 1,200 kg/s` · `FAN DIAMETER: 3.05 m`
-- **Animation:** Blue particle stream flowing into fan from the left
-- **Color temp:** Cool blue dominant
+Scene data lives in the `SCENES` array in [src/jet-engine.js](../src/jet-engine.js);
+camera presets in `SCENE_CAMERAS` in [src/scenes.js](../src/scenes.js).
 
-### Scene 2 — Compression
-- **Camera:** Slow dolly into engine, past the fan blades
-- **Headline:** *"Squeezed forty times tighter."*
-- **Subline:** *Fourteen stages of blades compress the airflow to extreme density.*
-- **Stats:** `PRESSURE RATIO: 40:1` · `STAGES: 14`
-- **Animation:** Pressure gradient builds, compressor stages glow sequentially
-- **Color temp:** Blue fading to neutral
+### Act I — The aircraft
 
-### Scene 3 — Combustion ⚡ (Click to ignite)
-- **Camera:** Tight on combustion chamber, slight orbit
-- **Headline:** *"Then, ignition."*
-- **Subline:** *Fuel meets compressed air at 1,500°C — hotter than molten lava.*
-- **Stats:** `TEMPERATURE: 1,500°C` · `FUEL: 4,000 L/hr`
-- **Animation:** Click-to-ignite triggers fuel inject → spark → glow → sustained burn. Combustion chamber emissiveIntensity ramps 0→1.5
-- **Color temp:** Orange takeover
+**Scene 0 — Intro** (`intro`)
+- **Camera:** Wide runway orbit of the full aircraft (OrbitControls enabled, wheel-zoom on)
+- **Headline:** *"Explore the aircraft."*
+- **Stats:** `MAX RANGE: 16,100 km` · `PASSENGERS: 369`
+- **Interaction:** Drag to orbit, hover for aircraft-zone tooltips, **VIEW ENGINE** CTA
+- **Environment:** Sky-blue background + fog, bright sun lighting
 
-### Scene 4 — Turbine
-- **Camera:** Pulls back slightly, turbine visible spinning
+**Scene 1 — The engine** (`engine-approach`)
+- **Camera:** Front-side approach, the starboard nacelle framed under the wing
+- **Headline:** *"The engine."*
+- **Stats:** `ENGINES: 2` · `TOTAL THRUST: 194,000 lbf`
+- **CTA:** **EXPLORE ENGINE**
+
+**Scene 2 — Engine exterior** (`exterior`)
+- **Camera:** Pulls onto the nacelle centreline; engine sits dead-centre
+- **Headline:** *"The machine beneath the wing."*
+- **Stats:** `DRY WEIGHT: 7,277 kg` · `DIAMETER: 3.0 m`
+- **Animation:** Aircraft ghosts to 25% opacity and aligns its nacelle to origin; the
+  primitives engine fades in inside it; sky darkens. **BEGIN WALKTHROUGH** CTA.
+
+### Act II — Anatomy of thrust
+
+**Scene 3 — Intake** (`intake`)
+- **Camera:** On centreline, looking into the intake face
+- **Headline:** *"It begins with air."* · *Every second, the 22-blade fan draws in 1,335 kg of air.*
+- **Stats:** `AIR FLOW: 1,335 kg/s` · `FAN DIAMETER: 3.0 m`
+- **Animation:** Blue intake particle stream into the fan
+
+**Scene 4 — Compression** (`compression`)
+- **Headline:** *"Squeezed fifty times tighter."*
+- **Stats:** `PRESSURE RATIO: 50:1` · `COMPRESSOR STAGES: 14`
+
+**Scene 5 — Combustion** ⚡ (`combustion`, click to ignite)
+- **Camera:** Tight on the combustion chamber
+- **Headline:** *"Then, ignition."* · *Fuel ignites at 1,700°C.*
+- **Stats:** `TEMPERATURE: 1,700°C` · `FUEL BURN: 4,200 L/hr`
+- **Animation:** **IGNITE** button → flash, emissive ramp to 2.8, sustained breathing
+  pulse, a one-shot exhaust puff, plus a camera impact-shake then pull-back.
+
+**Scene 6 — Turbine** (`turbine`)
 - **Headline:** *"The fire spins the wheel."*
-- **Subline:** *Expanding gases drive turbines at 10,000 RPM, powering the fan that started it all.*
-- **Stats:** `RPM: 10,000` · `EFFICIENCY: 40%`
-- **Animation:** Turbine speed visibly accelerates, energy flow lines connect turbine → fan
-- **Color temp:** Warm orange + amber
+- **Stats:** `HP SHAFT SPEED: 12,200 RPM` · `EFFICIENCY: 42%`
 
-### Scene 5 — Thrust (Free explore mode)
-- **Camera:** Free-rotate unlocked (OrbitControls enabled)
-- **Headline:** *"And the world moves."*
-- **Subline:** *84,000 pounds of thrust — enough to lift 38 cars off the ground.*
-- **Stats:** `THRUST: 84,000 lbf` · `LIFTS: 38 cars`
-- **Animation:** Exhaust particle stream from nozzle, full engine slowly rotating
-- **Interactive:** Drag to rotate + hover tooltips on every named part (fan, compressor, combustion, turbine, nozzle)
-- **Color temp:** Cinematic orange with ambient blue rim light
+**Scene 7 — Thrust** (`thrust`)
+- **Camera:** Slight elevation, wide reveal of the whole engine
+- **Headline:** *"And the world moves."* · *97,000 lbf of thrust per engine.*
+- **Stats:** `THRUST: 97,000 lbf` · `BYPASS RATIO: 9.3:1`
+- **Animation:** Orange exhaust plume from the nozzle. **Watch takeoff** leads to the finale.
+
+### Act III — Departure
+
+**Scene 8 — Departure** (`departure`)
+- **Camera:** Hero sky shot that slowly auto-orbits (OrbitControls re-enabled)
+- **Headline:** *"And it flies."*
+- **Stats:** `CRUISE SPEED: 945 km/h` · `CRUISE ALTITUDE: 13,100 m`
+- **Environment:** Three.js Sky shader + drifting cloud sprites; the aircraft bobs and
+  banks while the cloud field streams past. **REPLAY** returns to Scene 0.
 
 ---
 
-## 7. Interactive Elements (5 total — exceeds minimum of 3)
+## 7. Interactive Elements (7+ — far exceeds the minimum of 3)
 
 | # | Element | Where | Implementation |
 |---|---|---|---|
-| 1 | Scroll-triggered scene transitions | All 5 scenes | GSAP ScrollTrigger pins canvas, drives camera + content |
-| 2 | Hover tooltips with raycasting | Scenes 3–5 | Three.js Raycaster detects part under cursor → tooltip with specs |
-| 3 | Click-to-ignite | Scene 3 | Button triggers combustion animation sequence (fuel → spark → glow → sustained) |
-| 4 | Drag-to-rotate | Scene 5 | OrbitControls enabled only on final scene |
-| 5 | Animated data counters | Every scene | Numbers count up when scene activates (GSAP) |
+| 1 | Cinematic scroll hero | Host page | GSAP ScrollTrigger pins the hero; a flyby plane enters, expands, and dissolves into the A350 title + blueprint, scrubbed by Lenis |
+| 2 | Smooth scrolling | Host page | Lenis driven by the GSAP ticker, synced to ScrollTrigger |
+| 3 | Drag-to-orbit | Scenes 0 & 8 | OrbitControls with damping; wheel-zoom toggled per scene via `data-lenis-prevent` |
+| 4 | Hover tooltips (raycasting) | Scene 0 + Scenes 3–7 | Raycaster resolves aircraft zones (Scene 0) and named engine parts (anatomy scenes) |
+| 5 | Scene navigation | All scenes | CTA buttons (Acts I/III) + Prev/Next stage nav (Act II), each driving a GSAP camera + content transition |
+| 6 | Click-to-ignite | Scene 5 | Button triggers the combustion timeline + camera shake/pull-back + exhaust puff |
+| 7 | Animated data counters | Every scene | Numbers count up from 0 on scene activation (GSAP, tabular-nums) |
 
 ---
 
-## 8. Three.js Engine Model
+## 8. Three.js Models
 
-**Approach:** Build from primitives (cylinders, boxes, tori, cones) — NOT a GLTF download.
+### Aircraft — loaded GLB (`public/a350.glb`)
+- Loaded with **GLTFLoader + DRACOLoader** (Google CDN decoder).
+- `model-loader.js` normalizes it: rotates nose to +X, scales the fuselage to a target
+  length, drops the belly onto the runway plane, shifts so the starboard nacelle
+  (`engine_r`) sits co-axial with the primitives engine at the origin, and patches every
+  material to `transparent: true` (so the Scene 2 ghost-fade works) with sRGB textures.
+- **Graceful fallback:** if the GLB is missing or fails, `buildAircraftBody()` builds a
+  full procedural A350 (fuselage, wings, tail, engine pods, runway) so the demo never
+  breaks.
 
-**Why:**
-- Full control over individual parts for animation (fan, turbine, combustion all separately animatable)
-- Tiny file size, fast load
-- Stylized aesthetic matches 3DS visual language better than photorealism
-- Shows actual Three.js skill, not just file-loading
+### Engine — built from primitives (`engine-model.js`)
+Hand-built so each part is individually animatable and tooltip-targetable:
+- `nacelle` — fan cowl, intake lip, bypass + fan-nozzle rings, core cowl, chevron serrations
+- `fan` — 22 wide-chord blades + spinner + hub (named `fan`)
+- `compressor` — 4 stage rings (named `compressor`)
+- `combustion` — emissive cylinder + `combustionGlow` shell
+- `turbine` — 3 stage rings, counter-rotating (named `turbine`)
+- `nozzle` — core nozzle + exhaust plug cone + exit ring
 
-**Composition (already scaffolded):**
-- `shell` — outer nacelle (cylinder)
-- `fan` — group of 20 blades on a hub
-- `compressor` — 4 stages of decreasing-diameter blade rings
-- `combustion` — emissive cylinder + transparent glow shell
-- `turbine` — 2 stages of blade rings (rotates opposite direction)
-- `nozzle` — flared exhaust cylinder + inner cone
-- `pylon` — subtle mount point at top
+**Lighting:** sun key light, electric-blue rim, combustion-orange fill, sky ambient.
+Ambient/key intensity and fog are re-tuned per act (bright sky in Acts I/III, dark in Act II).
+ACES filmic tone mapping on the renderer.
 
-**Lighting:** Cinematic three-point setup
-- Key light: white, top-right, intensity 1.2
-- Rim light: electric blue (`#4FC3F7`), back-left, intensity 0.8
-- Fill light: combustion orange (`#FF6B35`), bottom-front, intensity 0.3
-- Ambient: cool blue-gray, intensity 0.6
+### Finale environment (`sky.js`)
+Three.js `Sky` atmospheric-scattering shader + a recycled field of canvas-painted
+billboard cloud sprites that drift past the flying aircraft. Hidden (zero cost) until Scene 8.
 
 ---
 
@@ -204,90 +253,94 @@ HTML5 + Vanilla JS (ES Modules)
 <jet-engine-infographic></jet-engine-infographic>
 ```
 
-**Future attributes (optional):**
-- `theme="dark"` (default) | `"light"`
-- `auto-play="true"` — start animation on viewport entry
+**Encapsulation:** Full Shadow DOM — no style/script leakage into the host page. Design
+tokens are declared on `:host`.
 
-**Encapsulation:** Full Shadow DOM. No style/script leakage into host page.
+**Host integration:** the component sets `data-lenis-prevent` on itself during orbit
+scenes (0 & 8) so the mouse wheel zooms the canvas there but scrolls the host page
+everywhere else.
 
-**Embeddability test:** The component should work when dropped into:
-- A vanilla HTML page
-- A Nuxt page (`client-only` wrapper)
-- A WordPress block
-- A plain CodePen
+**Embeddability:** drops into a vanilla HTML page, a Nuxt page (`client-only`), a
+WordPress block, or a CodePen with a single tag + module script.
 
 ---
 
 ## 10. Responsive Behavior
 
+The component is **fluid**, designed against the brief's desktop/mobile targets rather
+than pinned to fixed pixels:
+
 | Breakpoint | Behavior |
 |---|---|
-| Desktop (≥1024px) | Full 1440×900 canvas, all features active |
-| Tablet (768–1023px) | Scale canvas to fit, maintain aspect ratio |
-| Mobile (<768px) | 375×677 canvas. Reduce particle count 50%. Disable drag-rotate, replace with tap-to-cycle preset views. Stack data readouts. Hide secondary stats. |
+| Desktop (≥769px) | Component capped at 1440px wide; stage is 16:9, max-height 720px; all features active |
+| Mobile (≤768px) | Stage switches to a taller portrait crop (~375:560, max-height 560px); tighter padding; smaller type; data readouts compressed; OrbitControls handle touch (drag + pinch) |
+
+Pixel ratio is capped at 2 for performance. `prefers-reduced-motion` collapses
+animation/transition durations.
 
 ---
 
 ## 11. Current Build Status
 
-### ✅ Day 1 — Complete (scaffolded)
-- [x] Project structure + Vite config
-- [x] Faux editorial host page (`index.html`)
-- [x] Web Component shell with Shadow DOM
-- [x] Three.js scene setup (camera, renderer, lighting)
-- [x] Stylized engine model from primitives
-- [x] Scene data structure for all 5 scenes
-- [x] Idle motion (fan + turbine rotating continuously)
-- [x] Scene dots navigation (click to jump)
-- [x] Loading state, progress bar, top label
-- [x] Initial README
+### ✅ Shipped
+- [x] Project scaffold, Vite config (`base: './'` for static hosting)
+- [x] Cinematic host hero (pinned plane flyby → A350 title → blueprint) + faux article
+- [x] Web Component with Shadow DOM, design tokens, two-panel layout
+- [x] Three.js scene, ACES tone mapping, per-act lighting/fog
+- [x] **GLB A350 loader** with DRACO + procedural fallback + auto-normalization
+- [x] **Primitives Trent XWB-97 engine** (all named parts)
+- [x] 9-scene data + camera presets + GSAP transitions
+- [x] Animated text reveals + data counters (count-up from 0)
+- [x] Combustion ignition sequence (flash, ramp, breathing pulse, camera shake/pull-back)
+- [x] Raycaster tooltips (aircraft zones + engine parts)
+- [x] Particle systems (intake stream, exhaust plume + ignition puff)
+- [x] OrbitControls + wheel-zoom ownership per scene (Lenis-aware)
+- [x] **Departure finale** — Sky shader + drifting clouds + flight bob/bank
+- [x] Idle motion (fan + turbine rotation, engine sway)
+- [x] Mobile media queries + reduced-motion handling
 
-### 🔨 Day 2 — TODO
-- [ ] GSAP ScrollTrigger choreography for all 5 scenes
-- [ ] Camera animation between scene positions
-- [ ] Animated text reveals (stagger, fade in/up)
-- [ ] Animated data counters (numbers count up)
-- [ ] Combustion ignition sequence (Scene 3)
-- [ ] Raycaster-based hover tooltips
-- [ ] Click-to-ignite button + interaction
-- [ ] OrbitControls unlock on Scene 5
-- [ ] Particle systems (intake airflow + exhaust)
-
-### 🎨 Day 3 — TODO
-- [ ] Mobile responsive tuning
-- [ ] Touch interaction handlers
-- [ ] Performance optimization (particle count, pixel ratio)
-- [ ] Cross-browser testing (Chrome, Safari, Firefox)
-- [ ] README finalization with feature list + limitations
-- [ ] Final polish (easings, timing, color tweaks)
-- [ ] Netlify deployment
-- [ ] Test embedded demo flow
+### 🔲 Remaining before submission
+- [ ] Refresh README (features list, limitations, live URL)
+- [ ] Cross-browser pass (Chrome, Safari, Firefox)
+- [ ] Final mobile/touch tuning at the target sizes
+- [ ] Netlify deploy + verify the embedded demo flow
 
 ---
 
 ## 12. Evaluation Criteria (from brief)
 
-The reviewer will assess:
-1. **Visual design and creativity** → editorial aesthetic + 3D model + color narrative
-2. **Interactivity and user experience** → 5 interaction types, smooth choreography
-3. **Responsiveness across devices** → desktop + mobile variants
-4. **Code quality, organization, and documentation** → modular files, comments, README
+1. **Visual design and creativity** → editorial aesthetic, real GLB airframe + primitives
+   engine, cool→hot color narrative, cinematic hero + sky finale
+2. **Interactivity and user experience** → 7+ interaction types, smooth choreography
+3. **Responsiveness across devices** → fluid desktop + mobile layouts
+4. **Code quality, organization, and documentation** → modular `src/`, "why" comments,
+   docs + README
 
 ---
 
 ## 13. Constraints & Decisions
 
-- **No PHP, no Nuxt, no React** — vanilla only, to preserve embeddability
-- **Three.js model built from primitives** — not GLTF, for control + performance
-- **Shadow DOM** — to guarantee no host-page collisions
-- **Vite** — for dev speed, not because we need bundling sophistication
-- **GSAP over Anime.js** — ScrollTrigger is the cleanest scroll-driven animation API available
-- **Scope discipline:** No sound effects, no multiple engine comparisons, no post-processing shaders. These are rabbit holes for a 3-day sprint.
+- **No PHP, no Nuxt, no React** — vanilla only, to preserve embeddability.
+- **GLB for the aircraft, primitives for the engine** — the original "no GLTF" rule was
+  reversed for the airframe (a recognisable A350 sells the story better than a procedural
+  body), but kept for the engine so every part stays individually animatable. A procedural
+  fallback guarantees the demo survives a missing/blocked GLB.
+- **Shadow DOM** — guarantees no host-page collisions.
+- **Lenis + ScrollTrigger** — Lenis carries the host-page scroll feel; ScrollTrigger pins
+  and scrubs the hero. The *component's* scenes are button/CTA-driven (not scroll-pinned),
+  which reads as more deliberate for an embedded asset.
+- **GSAP over Anime.js** — cleanest timeline + scroll API.
+- **DRACO decoder via CDN** — keeps the repo light; can be vendored into `public/draco/`
+  for offline use.
+- **Scope discipline:** no sound, no engine comparisons, no post-processing shaders.
 
 ---
 
 ## 14. Author Context
 
-Built by **Ahmad Baihaqie Mohd Yusri (Qie)** — UI/UX-focused Software Engineer in Kuala Lumpur. Primary stack: Vue/Nuxt/Tailwind/TypeScript in fintech. Choosing vanilla + Web Components here is an intentional architectural decision to match the brief's embeddability requirement.
+Built by **Ahmad Baihaqie Mohd Yusri (Qie)** — UI/UX-focused Software Engineer in Kuala
+Lumpur. Primary stack: Vue/Nuxt/Tailwind/TypeScript in fintech. Choosing vanilla + Web
+Components here is an intentional architectural decision to match the brief's
+embeddability requirement.
 
 Personal brand: axelnova.tech
