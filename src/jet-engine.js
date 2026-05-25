@@ -831,6 +831,8 @@ class JetEngineInfographic extends HTMLElement {
     this.currentScene = 0;
     this.scenes = SCENES;
     this.ignited = false; // tracks whether Scene 3 has been ignited
+    this._rafId = null;    // requestAnimationFrame handle, so the loop can be cancelled on disconnect
+    this._disposed = false; // guards a queued frame from rendering after teardown
   }
 
   connectedCallback() {
@@ -843,6 +845,42 @@ class JetEngineInfographic extends HTMLElement {
   }
 
   disconnectedCallback() {
+    // 1. Stop the render loop FIRST — otherwise a queued frame renders against
+    //    resources we're about to dispose. The _disposed guard covers the frame
+    //    that may already be in flight when cancelAnimationFrame lands.
+    this._disposed = true;
+    if (this._rafId) cancelAnimationFrame(this._rafId);
+
+    // 2. Kill in-flight GSAP work. Tweens/timelines and delayedCalls hold a live
+    //    reference to this component (and fire onComplete callbacks), so they'd
+    //    keep it alive and could mutate disposed objects after teardown.
+    this._flyTween?.kill();
+    this._cruiseReturnCall?.kill();
+    if (this.camera)       gsap.killTweensOf(this.camera.position);
+    if (this.cameraTarget) gsap.killTweensOf(this.cameraTarget);
+    if (this.bloomPass)    gsap.killTweensOf(this.bloomPass);
+    if (this.renderer)     gsap.killTweensOf(this.renderer);
+
+    // 3. OrbitControls registers DOM listeners on the canvas; dispose() removes them.
+    this.controls?.dispose();
+
+    // 4. Free GPU memory explicitly — JS garbage collection does NOT reclaim
+    //    geometries, materials, or textures. Walk the whole graph and dispose each.
+    this.threeScene?.traverse((obj) => {
+      obj.geometry?.dispose();
+      const mats = Array.isArray(obj.material)
+        ? obj.material
+        : (obj.material ? [obj.material] : []);
+      for (const mat of mats) {
+        for (const key in mat) {
+          const val = mat[key];
+          if (val && val.isTexture) val.dispose(); // .map, .emissiveMap, cloud CanvasTexture, …
+        }
+        mat.dispose();
+      }
+    });
+
+    // 5. Post-processing + renderer + the resize observer.
     this.composer?.dispose();
     this.renderer?.dispose();
     this.resizeObserver?.disconnect();
@@ -1273,7 +1311,10 @@ class JetEngineInfographic extends HTMLElement {
 
   // ---------- ANIMATION LOOP ----------
   animate() {
-    requestAnimationFrame(() => this.animate());
+    // A frame can already be queued when disconnect fires — bail before touching
+    // anything that teardown has disposed.
+    if (this._disposed) return;
+    this._rafId = requestAnimationFrame(() => this.animate());
 
     // Idle rotation — fan always spins forward, turbine spins opposite
     if (this.fan)     this.fan.rotation.x     += 0.015;
